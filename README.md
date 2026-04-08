@@ -1,8 +1,6 @@
-# nmap builder
+# **[nmapguide](https://homestarfuzzer.github.io/nmapguide/)**
 
 An interactive, browser-based nmap command builder and reference tool for pentesters, red teamers, and students learning network scanning.
-
-**[→ Live tool](https://homestarfuzzer.github.io/nmap-builder/)**
 
 ---
 
