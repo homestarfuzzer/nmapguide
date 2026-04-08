@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>nmap builder</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  /* Tokyo Night — deep navy-purple, modern security aesthetic */
+  --bg:#1a1b2e;--s1:#16213e;--s2:#1f2335;--s3:#24283b;
+  --b0:#292e42;--b1:#3b4261;--b2:#545c7e;--b3:#737aa2;
+  --g0:#9ece6a;   /* Tokyo Night green */
+  --g1:rgba(158,206,106,.08);--g2:#1a2a14;
+  --t0:#c0caf5;   /* lavender-white */
+  --t1:#565f89;   /* muted blue-grey */
+  --t2:#2f3553;   /* very dim */
+  --t3:#a9b1d6;
+  --am:#e0af68;   /* warm gold */
+  --bl:#7aa2f7;   /* periwinkle blue */
+  --pu:#bb9af7;   /* Tokyo purple — for highlights */
+  --rd:#f7768e;   /* Tokyo red */
+  --rdb:rgba(247,118,142,.10);
+  --fn:'IBM Plex Mono',monospace;--fs:'IBM Plex Sans',sans-serif;
+}
+html{background:var(--bg);color:var(--t0);font-family:var(--fn);min-height:100vh}
+body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5rem}
+
+/* ── header ── */
+.hdr{text-align:center;margin-bottom:1.8rem;display:flex;flex-direction:column;align-items:center;gap:.75rem}
+.hdr-emblem{width:64px;height:64px;flex-shrink:0}
+.hdr-text{}
+.hdr-main{
+  font-size:28px;font-weight:500;color:var(--g0);letter-spacing:-.02em;line-height:1;
+}
+.hdr-sub{
+  font-family:var(--fs);font-size:11px;font-weight:300;
+  color:var(--t1);margin-top:.45rem;letter-spacing:.06em;
+  display:flex;align-items:center;justify-content:center;gap:.6em;
+}
+.hdr-dot{color:var(--t2)}
+.hdr-sub a{
+  color:var(--t2);text-decoration:none;
+  border-bottom:1px solid var(--t2);padding-bottom:1px;
+  transition:color .12s,border-color .12s;font-family:var(--fn);font-size:10px;letter-spacing:.04em;
+}
+.hdr-sub a:hover{color:var(--bl);border-color:var(--bl)}
+
+/* radar sweep animation */
+@keyframes sweep{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.radar-sweep{transform-origin:32px 32px;animation:sweep 3s linear infinite}
+@keyframes ping{0%,100%{opacity:.8}50%{opacity:.15}}
+.radar-ping1{animation:ping 3s ease-in-out infinite}
+.radar-ping2{animation:ping 3s ease-in-out infinite .75s}
+.radar-ping3{animation:ping 3s ease-in-out infinite 1.5s}
+
+/* ── tool tabs ── */
+.tooltabs{
+  display:flex;width:100%;max-width:560px;margin-bottom:-1px;z-index:1;position:relative;
+}
+.ttab{
+  padding:5px 14px;font-family:var(--fn);font-size:10px;letter-spacing:.06em;
+  background:var(--s1);border:1px solid var(--b1);border-bottom:none;
+  color:var(--t1);cursor:pointer;transition:all .12s;
+  border-radius:4px 4px 0 0;margin-right:2px;
+}
+.ttab:hover{color:var(--t0)}
+.ttab.on{background:var(--s2);color:var(--g0);border-color:var(--b2);border-bottom:1px solid var(--s2)}
+
+/* ── command strip ── */
+.cmdstrip{
+  width:100%;max-width:560px;margin-bottom:1.2rem;
+  display:flex;align-items:stretch;
+  background:var(--s2);border:1px solid var(--b2);border-radius:0 4px 4px 4px;overflow:hidden;
+}
+#cmdLine{
+  flex:1;padding:11px 12px;font-size:12px;line-height:1.7;
+  word-break:break-all;min-height:44px;display:flex;align-items:center;flex-wrap:wrap;gap:3px;
+}
+.ct{color:var(--g0);font-weight:500}
+.cf{color:var(--bl)}
+.ca{color:var(--am)}
+.ca-err{color:var(--rd)}
+.cd{color:var(--t1);font-size:11px}
+.cc{color:var(--t2);font-size:11px;font-style:italic}   /* comment/note style */
+#cpBtn{
+  flex-shrink:0;padding:0 14px;background:none;border:none;
+  border-left:1px solid var(--b1);font-family:var(--fn);font-size:10px;
+  letter-spacing:.05em;color:var(--t1);cursor:pointer;transition:all .12s;
+}
+#cpBtn:hover{color:var(--g0)}
+#cpBtn.ok{color:var(--g0);background:var(--g1)}
+
+/* ── target row ── */
+.trow{display:flex;width:100%;max-width:560px;margin-bottom:1.2rem}
+.tlbl{
+  background:var(--s1);border:1px solid var(--b1);border-right:none;
+  border-radius:4px 0 0 4px;padding:0 11px;height:40px;
+  display:flex;align-items:center;gap:5px;
+  font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--t1);flex-shrink:0;
+}
+.tlbl span{color:var(--g0)}
+#tIn{
+  flex:1;height:40px;padding:0 11px;
+  background:var(--s1);border:1px solid var(--b1);border-right:none;
+  font-family:var(--fn);font-size:13px;outline:none;
+  color:var(--am);
+  transition:border-color .12s,background .12s,color .18s;
+}
+#tIn.invalid{color:var(--rd);border-color:rgba(255,80,96,.3);background:var(--rdb)}
+#tIn.valid{color:var(--am);border-color:var(--g2);background:var(--s1)}
+#tIn::placeholder{color:var(--t2);font-size:12px}
+#tIn:focus{border-color:var(--b2)}
+#tIn.invalid:focus{border-color:rgba(255,80,96,.6)}
+.tclear{
+  height:40px;padding:0 12px;background:var(--s1);
+  border:1px solid var(--b1);border-radius:0 4px 4px 0;
+  color:var(--t1);font-size:15px;cursor:pointer;display:flex;align-items:center;transition:color .12s;
+}
+.tclear:hover{color:var(--t0)}
+
+/* ── card stack ── */
+#stack{width:100%;max-width:560px;display:flex;flex-direction:column}
+.card{border:1px solid var(--b1);border-top:none;transition:box-shadow .2s,border-color .2s}
+.card:first-child{border-top:1px solid var(--b1);border-radius:4px 4px 0 0}
+.card:last-child{border-radius:0 0 4px 4px}
+.card.done{box-shadow:0 3px 0 rgba(0,0,0,.5),0 5px 0 rgba(10,24,36,.7);margin-bottom:5px}
+.card.active{border-color:var(--b2);box-shadow:0 6px 28px rgba(0,0,0,.45);position:relative;z-index:5}
+.card.pending{opacity:.2;pointer-events:none}
+
+/* ── strip ── */
+.strip{
+  display:flex;align-items:center;gap:9px;height:42px;padding:0 14px;
+  background:var(--s1);user-select:none;cursor:pointer;
+}
+.card.done .strip:hover,.card.active .strip:hover{background:var(--s2)}
+.card.active .strip{background:var(--s2)}
+.card.pending .strip{cursor:default}
+.snum{font-size:9px;color:var(--t2);letter-spacing:.06em;flex-shrink:0;min-width:14px}
+.sname{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--pu);flex-shrink:0}
+.sref{font-size:9px;color:var(--t2);flex-shrink:0;text-decoration:none;padding:2px 5px;border:1px solid var(--t2);border-radius:2px;opacity:0;transition:opacity .15s,color .12s,border-color .12s}
+.strip:hover .sref{opacity:1}
+.sref:hover{color:var(--bl);border-color:var(--bl)}
+.stags{display:flex;flex-wrap:wrap;gap:3px;flex:1;overflow:hidden;min-width:0}
+.stag{
+  font-size:9px;color:var(--g0);background:var(--g2);
+  border:1px solid rgba(0,232,122,.15);border-radius:2px;
+  padding:1px 5px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;
+}
+.sarr{font-size:12px;color:var(--t2);flex-shrink:0;transition:transform .2s,color .15s}
+.card.active .sarr{transform:rotate(90deg);color:var(--g0)}
+
+/* ── body ── */
+.body{background:var(--bg);border-top:1px solid var(--b0);max-height:0;overflow:hidden;transition:max-height .28s cubic-bezier(.4,0,.2,1)}
+.card.active .body{max-height:960px}
+.binner{padding:12px 14px 10px}
+
+/* desc bar — locked height, no layout jump */
+.dbar{
+  height:32px;line-height:32px;padding:0;font-size:11px;color:var(--t1);
+  border-bottom:1px solid var(--b0);margin-bottom:8px;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:block;
+}
+.dbar .fh{color:var(--bl)}
+.dbar.empty{color:var(--t2)}
+
+/* first grp-label after dbar has no extra top border */
+.dbar + .grp-label{border-top:none;padding-top:0}
+
+/* pills */
+.pills{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.pill{
+  display:inline-flex;align-items:center;border:1px solid var(--b1);
+  border-radius:20px;background:transparent;overflow:hidden;cursor:pointer;transition:border-color .1s;
+}
+.pill:hover{border-color:var(--b2)}
+.pill.on{border-color:var(--g0);background:var(--g2)}
+.plbl{font-family:var(--fn);font-size:11px;color:var(--t1);padding:4px 11px;pointer-events:none;white-space:nowrap;transition:color .1s}
+.pill:hover .plbl{color:var(--t0)}
+.pill.on .plbl{color:var(--g0)}
+.pval{
+  display:none;width:62px;padding:4px 8px 4px 3px;
+  font-family:var(--fn);font-size:11px;background:transparent;
+  border:none;border-left:1px solid rgba(158,206,106,.2);color:var(--g0);outline:none;
+}
+.pill.on .pval{display:block}
+.pval::placeholder{color:rgba(158,206,106,.3)}
+.pval[type=number]{-moz-appearance:textfield}
+.pval[type=number]::-webkit-outer-spin-button,
+.pval[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+
+/* group label within a section */
+.grp-label{
+  font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--t2);padding:8px 0 5px;
+  border-top:1px solid var(--b0);margin-top:4px;
+}
+.grp-label:first-child{border-top:none;padding-top:0}
+
+/* footer */
+.cfoot{display:flex;justify-content:flex-end;padding:4px 0 2px;border-top:1px solid var(--b0);margin-top:6px}
+.nxtbtn{background:none;border:none;font-family:var(--fn);font-size:10px;letter-spacing:.06em;color:var(--t1);cursor:pointer;padding:4px 0;transition:color .12s}
+.nxtbtn:hover{color:var(--t0)}
+
+/* ── NSE ── */
+.nse-wrap{display:flex;flex-direction:column;gap:8px}
+.nse-search{
+  width:100%;padding:6px 10px;background:var(--s1);border:1px solid var(--b1);border-radius:3px;
+  font-family:var(--fn);font-size:11px;color:var(--t0);outline:none;transition:border-color .12s;
+}
+.nse-search:focus{border-color:var(--b2)}
+.nse-search::placeholder{color:var(--t2)}
+.nse-cats{display:flex;flex-wrap:wrap;gap:4px;padding-bottom:8px;border-bottom:1px solid var(--b0)}
+.ncat{
+  padding:3px 9px;font-family:var(--fn);font-size:10px;letter-spacing:.04em;
+  border:1px solid var(--b1);border-radius:3px;background:none;
+  color:var(--t1);cursor:pointer;transition:all .1s;
+}
+.ncat:hover{color:var(--t0);border-color:var(--b2)}
+.ncat.on{color:var(--g0);border-color:var(--g0);background:var(--g2)}
+.nse-desc{min-height:20px;font-size:11px;color:var(--t1);padding:2px 0 6px;border-bottom:1px solid var(--b0)}
+.nse-desc .fh{color:var(--bl)}
+.nse-desc.empty{color:var(--t2);font-size:10px}
+.nse-list{display:flex;flex-wrap:wrap;gap:4px;max-height:190px;overflow-y:auto}
+.nse-list::-webkit-scrollbar{width:3px}
+.nse-list::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+.nse-empty{font-size:11px;color:var(--t2);font-style:italic;padding:4px 0}
+
+/* sV sub-intensity (shown/hidden) */
+.sv-intensity{display:none}
+.sv-intensity.show{display:flex;flex-wrap:wrap;gap:5px}
+
+/* ── Standalone Playbook section ── */
+#playbook{
+  width:100%;max-width:560px;margin-top:3.5rem;
+}
+.pb-section-hdr{
+  margin-bottom:1.2rem;padding-bottom:1rem;
+  border-bottom:1px solid var(--b1);
+}
+.pb-section-top{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:.5rem;
+}
+.pb-section-title{
+  font-size:16px;font-weight:500;color:var(--pu);letter-spacing:-.01em;
+  display:flex;align-items:center;gap:.4em;
+}
+.pb-icon{color:var(--t1);font-size:13px}
+.pb-section-badge{
+  font-family:var(--fn);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--am);border:1px solid rgba(224,175,104,.3);border-radius:3px;padding:2px 8px;
+}
+.pb-section-sub{
+  font-family:var(--fs);font-size:12px;font-weight:300;color:var(--t1);line-height:1.6;
+}
+
+/* ── Playbook ── */
+.pb-wrap{display:flex;flex-direction:column;gap:8px}
+.pb-search{
+  flex:1;padding:6px 10px;background:var(--s1);border:1px solid var(--b1);border-radius:3px;
+  font-family:var(--fn);font-size:11px;color:var(--t0);outline:none;transition:border-color .12s;
+}
+.pb-search:focus{border-color:var(--b2)}
+.pb-search::placeholder{color:var(--t2)}
+.pb-cats{display:flex;flex-wrap:wrap;gap:4px;padding-bottom:8px;border-bottom:1px solid var(--b0)}
+.pbcat{
+  padding:3px 9px;font-family:var(--fn);font-size:10px;letter-spacing:.04em;
+  border:1px solid var(--b1);border-radius:3px;background:none;
+  color:var(--t1);cursor:pointer;transition:all .1s;
+}
+.pbcat:hover{color:var(--t0);border-color:var(--b2)}
+.pbcat.on{color:var(--pu);border-color:var(--pu);background:rgba(187,154,247,.09)}
+.pb-list{display:flex;flex-direction:column;gap:5px;max-height:500px;overflow-y:auto;padding-bottom:2rem}
+.pb-list::-webkit-scrollbar{width:3px}
+.pb-list::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+.pb-item{
+  border:1px solid var(--b1);border-radius:4px;background:var(--s1);
+  padding:8px 11px;cursor:default;transition:border-color .12s,background .1s;
+}
+.pb-item:hover{border-color:var(--b2);background:var(--s2)}
+.pb-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:3px}
+.pb-title{font-size:11px;font-weight:500;color:var(--t3);white-space:nowrap}
+.pb-cat-badge{
+  font-size:9px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--t2);border:1px solid var(--t2);border-radius:2px;padding:1px 5px;flex-shrink:0;
+}
+.pb-cmd{
+  font-size:10px;line-height:1.6;word-break:break-all;margin-bottom:3px;
+}
+.pb-cmd .pt{color:var(--g0);font-weight:500}
+.pb-cmd .pf{color:var(--bl)}
+.pb-cmd .pa{color:var(--am)}
+.pb-desc{font-size:10px;color:var(--t1);line-height:1.4}
+.pb-copy-row{display:flex;justify-content:flex-end;margin-top:5px;padding-top:5px;border-top:1px solid var(--b0)}
+.pb-copy{
+  font-family:var(--fn);font-size:9px;letter-spacing:.06em;
+  padding:2px 10px;background:none;border:1px solid var(--b1);border-radius:2px;
+  color:var(--t1);cursor:pointer;transition:all .12s;
+}
+.pb-copy:hover{color:var(--g0);border-color:var(--g2)}
+.pb-copy.ok{color:var(--g0);border-color:var(--g0);background:var(--g1)}
+.pb-empty{font-size:11px;color:var(--t2);font-style:italic;padding:4px 0}
+
+@media(max-width:600px){#tIn{font-size:16px}.card.done{box-shadow:0 2px 0 rgba(0,0,0,.4)}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <!-- Radar sweep emblem -->
+  <svg class="hdr-emblem" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="rg" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#61efce" stop-opacity=".18"/>
+        <stop offset="100%" stop-color="#61efce" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <!-- bg circle -->
+    <circle cx="32" cy="32" r="30" fill="#10111f" stroke="#27284a" stroke-width="1"/>
+    <!-- range rings -->
+    <circle cx="32" cy="32" r="10" fill="none" stroke="#27284a" stroke-width=".8"/>
+    <circle cx="32" cy="32" r="20" fill="none" stroke="#27284a" stroke-width=".8"/>
+    <circle cx="32" cy="32" r="29" fill="none" stroke="#27284a" stroke-width=".8"/>
+    <!-- crosshairs -->
+    <line x1="32" y1="4" x2="32" y2="60" stroke="#27284a" stroke-width=".6"/>
+    <line x1="4" y1="32" x2="60" y2="32" stroke="#27284a" stroke-width=".6"/>
+    <!-- sweep wedge -->
+    <g class="radar-sweep">
+      <path d="M32 32 L32 4 A28 28 0 0 1 55.7 19" fill="none" stroke="#61efce" stroke-width="1" opacity=".7"/>
+      <path d="M32 32 L32 4 A28 28 0 0 1 55.7 19" fill="url(#rg)" opacity=".5"/>
+      <!-- sweep leading edge -->
+      <line x1="32" y1="32" x2="32" y2="4" stroke="#61efce" stroke-width="1.2" opacity=".9"/>
+    </g>
+    <!-- blips -->
+    <circle class="radar-ping1" cx="44" cy="20" r="2" fill="#61efce"/>
+    <circle class="radar-ping2" cx="22" cy="40" r="1.5" fill="#7b9fff"/>
+    <circle class="radar-ping3" cx="48" cy="38" r="1.5" fill="#61efce" opacity=".6"/>
+    <!-- center dot -->
+    <circle cx="32" cy="32" r="2" fill="#61efce"/>
+  </svg>
+
+  <div class="hdr-text">
+    <div class="hdr-main">nmap</div>
+    <div class="hdr-sub">
+      <span>interactive scanner reference</span>
+      <span class="hdr-dot">·</span>
+      <a href="https://nmap.org/book/man.html" target="_blank" rel="noopener">manual ↗</a>
+      <span class="hdr-dot">·</span>
+      <a href="#playbook" onclick="document.getElementById('playbook').scrollIntoView({behavior:'smooth'});return false;">real-world playbook ↓</a>
+    </div>
+  </div>
+</div>
+
+<!-- Tool tabs -->
+<div class="tooltabs">
+  <button class="ttab on" data-tool="nmap" onclick="setTool('nmap')">nmap</button>
+  <button class="ttab" data-tool="rustscan" onclick="setTool('rustscan')"
+    title="rustscan — ultra-fast async port scanner. Discovers open ports first, then passes them to nmap for deep analysis. Same flags, faster discovery.">
+    rustscan <span style="font-size:9px;color:var(--t1);margin-left:2px">⚡</span>
+  </button>
+</div>
+
+<!-- Command strip — only command display -->
+<div class="cmdstrip">
+  <div id="cmdLine"><span class="cd">enter a target to begin</span></div>
+  <button id="cpBtn" onclick="copyCmd()">copy</button>
+</div>
+
+<!-- Target -->
+<div class="trow">
+  <div class="tlbl"><span>$</span>target</div>
+  <input id="tIn" type="text" placeholder="ip · hostname · cidr · range"
+         autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="none">
+  <button class="tclear" onclick="clearAll()">×</button>
+</div>
+
+<!-- Card stack -->
+<div id="stack"></div>
+
+<!-- ── Standalone Playbook ─────────────────────────────────────────────── -->
+<div id="playbook">
+  <div class="pb-section-hdr">
+    <div class="pb-section-top">
+      <div class="pb-section-title">
+        <span class="pb-icon">⌗</span>
+        playbook
+      </div>
+      <div class="pb-section-badge">real-world commands</div>
+    </div>
+    <div class="pb-section-sub">
+      Ready-to-run scans used by pentesters, red teamers, and CTF players.
+      Enter your target above and every command auto-fills.
+    </div>
+  </div>
+
+  <div class="pb-wrap">
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="pb-search" type="search" placeholder="search commands, flags, or categories…"
+             oninput="pbFilter(this.value)" autocomplete="off">
+    </div>
+    <div class="pb-cats" id="pbCats">
+      <!-- injected by JS -->
+    </div>
+    <div class="pb-list" id="pbList"></div>
+  </div>
+</div>
+
+<script>
+// ─── NSE descriptions ─────────────────────────────────────────────────────────
+const NSE_D = {
+  'ftp-anon':'Tests if FTP server allows anonymous login without credentials',
+  'http-auth':'Lists HTTP authentication methods and realms for a given URI',
+  'http-default-accounts':'Tests for common default credentials on web interfaces (routers, printers, NAS)',
+  'http-form-fuzzer':'Fuzzes HTML form fields to identify unexpected server behavior',
+  'http-open-proxy':'Checks if host is acting as an HTTP open relay proxy',
+  'irc-sasl-brute':'Brute-forces IRC SASL authentication credentials',
+  'msrpc-enum':'Enumerates Windows MS-RPC endpoints and program interfaces',
+  'mysql-empty-password':'Checks MySQL server for accounts with no password set',
+  'oracle-default-userpass':'Tests Oracle DB with a list of known default credentials',
+  'smtp-open-relay':'Tests SMTP server for open relay — abusable for spam',
+  'snmp-communities':'Brute-forces SNMP community strings (default: public, private)',
+  'vnc-info':'Retrieves VNC server info, protocol version, and auth types',
+  'x11-access':'Tests if X11 display server allows unauthenticated connections',
+  'ftp-brute':'Brute-forces FTP login with common username/password pairs',
+  'http-brute':'Brute-forces HTTP basic and digest authentication credentials',
+  'http-form-brute':'Brute-forces HTML login form fields with wordlists',
+  'imap-brute':'Brute-forces IMAP email server login credentials',
+  'ldap-brute':'Brute-forces LDAP directory authentication',
+  'mssql-brute':'Brute-forces Microsoft SQL Server login credentials',
+  'mysql-brute':'Brute-forces MySQL database username and password',
+  'oracle-brute':'Brute-forces Oracle database SIDs and account credentials',
+  'pgsql-brute':'Brute-forces PostgreSQL database login credentials',
+  'pop3-brute':'Brute-forces POP3 email server authentication',
+  'redis-brute':'Brute-forces Redis server password authentication',
+  'smtp-brute':'Brute-forces SMTP server auth (PLAIN, LOGIN, CRAM-MD5)',
+  'snmp-brute':'Brute-forces SNMP v1/v2c community strings',
+  'ssh-brute':'Brute-forces SSH with common username/password combinations',
+  'telnet-brute':'Brute-forces Telnet login credentials',
+  'vnc-brute':'Brute-forces VNC server password',
+  'xmpp-brute':'Brute-forces XMPP/Jabber server authentication',
+  'dns-nsid':'Queries DNS servers for their Name Server ID string',
+  'http-auth-finder':'Discovers HTTP authentication method in use on web server',
+  'http-favicon':'Retrieves favicon to identify web apps (Jenkins, phpMyAdmin, etc)',
+  'http-generator':'Extracts CMS/framework from HTML generator meta tag',
+  'http-title':'Gets the page <title> — useful for rapid service identification',
+  'http-server-header':'Extracts the HTTP Server response header value',
+  'smtp-commands':'Lists SMTP server supported commands (EHLO response)',
+  'ssh-hostkey':'Retrieves and fingerprints SSH host keys (MD5 and SHA-256)',
+  'ssl-cert':'Retrieves and parses SSL/TLS certificate — shows expiry, issuer, SANs',
+  'ssl-enum-ciphers':'Lists all SSL/TLS cipher suites supported and grades them A–F',
+  'banner':'Grabs raw service banners — works on many ports for quick identification',
+  'cups-info':'Lists printers and jobs exposed via CUPS printing protocol',
+  'dns-brute':'Brute-forces DNS subdomains using a built-in wordlist',
+  'dns-zone-transfer':'Attempts AXFR zone transfer — reveals all records in a DNS zone',
+  'finger':'Queries finger daemon for user and system information',
+  'http-headers':'Retrieves all HTTP response headers from the web server',
+  'http-methods':'Lists all HTTP methods allowed by the server (GET, PUT, DELETE…)',
+  'http-robots.txt':'Retrieves /robots.txt to reveal paths hidden from search engines',
+  'nfs-ls':'Lists NFS exports and shows accessible files and directories',
+  'nfs-showmount':'Queries NFS mountd for the list of exported directories',
+  'rpcinfo':'Queries RPC portmapper for all registered RPC services',
+  'smb-enum-shares':'Lists all SMB/CIFS network shares on a Windows host',
+  'smb-os-discovery':'Detects Windows OS version, domain, and computer name via SMB',
+  'snmp-info':'Extracts system description and interface list via SNMP MIB',
+  'traceroute-geolocation':'Adds country/city geolocation labels to traceroute hops',
+  'whois-ip':'Performs WHOIS lookup on target IP to reveal owner and ASN',
+  'upnp-info':'Retrieves device info exposed via Universal Plug and Play protocol',
+  'http-shellshock':'Tests CGI scripts for Shellshock bash vulnerability (CVE-2014-6271)',
+  'ms17-010-eternalblue':'Tests for EternalBlue SMBv1 RCE vulnerability used by WannaCry',
+  'smtp-vuln-cve2010-4344':'Tests Exim SMTP for remote code execution (CVE-2010-4344)',
+  'jdwp-exec':'Exploits Java Debug Wire Protocol for arbitrary command execution',
+  'realvnc-auth-bypass':'Tests RealVNC for authentication bypass (CVE-2006-2369)',
+  'apache-mod-cgi-bash-env-exec':'Tests Apache mod_cgi for Shellshock vulnerability',
+  'http-csrf':'Checks web page forms for potential CSRF vulnerabilities',
+  'http-dombased-xss':'Detects DOM-based Cross-Site Scripting vulnerabilities in pages',
+  'http-phpself-xss':'Tests for XSS via PHP_SELF variable in form action attributes',
+  'http-slowloris-check':'Tests if server is vulnerable to Slowloris DoS (non-destructive)',
+  'http-sql-injection':'Crawls web pages and tests GET/POST params for SQL injection',
+  'smb-vuln-ms08-067':'Tests for MS08-067 used by Conficker worm — critical severity',
+  'smb-vuln-ms17-010':'Tests for EternalBlue SMB RCE vulnerability (MS17-010)',
+  'smb-vuln-conficker':'Detects active Conficker worm infection via SMB',
+  'ssl-heartbleed':'Tests for Heartbleed OpenSSL memory leak (CVE-2014-0160)',
+  'ssl-poodle':'Tests for POODLE SSL 3.0 downgrade attack (CVE-2014-3566)',
+  'ssl-ccs-injection':'Tests for OpenSSL ChangeCipherSpec injection (CVE-2014-0224)',
+  'http-iis-webdav-vuln':'Tests IIS WebDAV for authentication bypass (CVE-2009-1535)',
+  'http-enum':'Enumerates web server directories and files using a wordlist',
+  'http-git':'Detects exposed .git repositories that can leak full source code',
+  'http-joomla-brute':'Brute-forces Joomla CMS administrator login portal',
+  'http-php-version':'Detects PHP version from headers and crafted error pages',
+  'http-put':'Tests if HTTP PUT method is enabled — allows arbitrary file upload',
+  'http-sitemap-generator':'Crawls a website and builds a complete URL sitemap',
+  'http-slowloris':'Performs actual Slowloris DoS attack (use -check variant for testing)',
+  'http-trace':'Tests if HTTP TRACE is enabled — enables XST cross-site tracing attacks',
+  'http-wordpress-brute':'Brute-forces WordPress wp-login.php administrator credentials',
+  'http-wordpress-enum':'Enumerates WordPress plugins, themes, and their versions',
+  'http-wordpress-users':'Enumerates WordPress usernames via author ID parameter',
+  'smb-enum-domains':'Lists Windows domains and workgroups via SMB protocol',
+  'smb-enum-groups':'Lists local and domain group accounts via SMB',
+  'smb-enum-processes':'Lists running processes on Windows — typically needs credentials',
+  'smb-enum-sessions':'Enumerates active SMB sessions and currently logged-in users',
+  'smb-enum-users':'Lists Windows user accounts discoverable via SMB/MSRPC',
+  'smb-security-mode':'Shows SMB authentication level, signing, and encryption settings',
+  'smb-vuln-ms06-025':'Tests for Windows DNS RPC stack overflow (MS06-025)',
+  'smb-vuln-ms07-029':'Tests for Windows DNS RPC heap overflow (MS07-029)',
+  'smb-vuln-ms10-054':'Tests for Windows SMB NULL pointer dereference (MS10-054)',
+  'smb-vuln-ms10-061':'Tests for Windows Print Spooler impersonation bug (MS10-061)',
+  'smb2-capabilities':'Lists SMB2 protocol capabilities and optional feature flags',
+  'smb2-security-mode':'Shows SMB2 message signing requirements and security mode',
+  'smb2-time':'Retrieves server time via SMB2 — useful for Kerberos ticket timing',
+  'ssh-auth-methods':'Lists authentication methods accepted by the SSH server',
+  'ssh-publickey-acceptance':'Tests which public keys the server will accept',
+  'ssh-run':'Executes commands on SSH servers using provided credentials',
+  'ssh2-enum-algos':'Lists key exchange, encryption, and MAC algorithms supported',
+  'ssl-date':'Retrieves TLS server clock time and measures drift from real time',
+  'ssl-dh-params':'Checks Diffie-Hellman parameter strength — detects Logjam risk',
+  'ssl-known-primes':'Checks DH params against a database of known weak prime values',
+  'sslv2':'Checks if SSLv2 is enabled — completely broken, must be disabled',
+  'sslv2-drown':'Tests for DROWN attack via SSLv2 support (CVE-2016-0800)',
+  'dns-cache-snoop':'Checks DNS cache for records without making recursive queries',
+  'dns-check-zone':'Audits a DNS zone for common misconfigurations',
+  'dns-nsec-enum':'Enumerates DNS names via NSEC record walking in DNSSEC zones',
+  'dns-random-srcport':'Checks if DNS uses random source ports (CVE-2008-1447 defense)',
+  'dns-recursion':'Tests if DNS server allows recursive queries from external hosts',
+  'dns-service-discovery':'Discovers services published via DNS-SD/mDNS (Bonjour/Avahi)',
+};
+
+// ─── NSE library ─────────────────────────────────────────────────────────────
+const NSE = {
+  auth:['ftp-anon','http-auth','http-default-accounts','http-form-fuzzer','http-open-proxy','irc-sasl-brute','msrpc-enum','mysql-empty-password','oracle-default-userpass','smtp-open-relay','snmp-communities','vnc-info','x11-access'],
+  brute:['ftp-brute','http-brute','http-form-brute','imap-brute','ldap-brute','mssql-brute','mysql-brute','oracle-brute','pgsql-brute','pop3-brute','redis-brute','smtp-brute','snmp-brute','ssh-brute','telnet-brute','vnc-brute','xmpp-brute'],
+  default:['banner','dns-nsid','ftp-anon','http-auth-finder','http-favicon','http-generator','http-server-header','http-title','smtp-commands','ssh-hostkey','ssl-cert','ssl-enum-ciphers'],
+  discovery:['banner','cups-info','dns-brute','dns-zone-transfer','finger','http-headers','http-methods','http-robots.txt','nfs-ls','nfs-showmount','rpcinfo','smb-enum-shares','smb-os-discovery','snmp-info','traceroute-geolocation','upnp-info','whois-ip'],
+  exploit:['apache-mod-cgi-bash-env-exec','http-shellshock','jdwp-exec','ms17-010-eternalblue','realvnc-auth-bypass','smtp-vuln-cve2010-4344'],
+  vuln:['http-csrf','http-dombased-xss','http-iis-webdav-vuln','http-phpself-xss','http-shellshock','http-slowloris-check','http-sql-injection','ms17-010-eternalblue','smb-vuln-conficker','smb-vuln-ms08-067','smb-vuln-ms17-010','smtp-vuln-cve2010-4344','ssl-ccs-injection','ssl-heartbleed','ssl-poodle'],
+  safe:['banner','dns-zone-transfer','http-auth-finder','http-headers','http-robots.txt','http-title','smtp-commands','ssh-hostkey','ssl-cert'],
+  http:['http-auth','http-brute','http-csrf','http-default-accounts','http-dombased-xss','http-enum','http-form-brute','http-form-fuzzer','http-git','http-headers','http-iis-webdav-vuln','http-joomla-brute','http-methods','http-open-proxy','http-php-version','http-phpself-xss','http-put','http-robots.txt','http-shellshock','http-sitemap-generator','http-slowloris','http-slowloris-check','http-sql-injection','http-title','http-trace','http-wordpress-brute','http-wordpress-enum','http-wordpress-users'],
+  smb:['smb-enum-domains','smb-enum-groups','smb-enum-processes','smb-enum-sessions','smb-enum-shares','smb-enum-users','smb-os-discovery','smb-security-mode','smb-vuln-conficker','smb-vuln-ms06-025','smb-vuln-ms07-029','smb-vuln-ms08-067','smb-vuln-ms10-054','smb-vuln-ms10-061','smb-vuln-ms17-010','smb2-capabilities','smb2-security-mode','smb2-time'],
+  ssh:['ssh-auth-methods','ssh-brute','ssh-hostkey','ssh-publickey-acceptance','ssh-run','ssh2-enum-algos'],
+  ssl:['ssl-cert','ssl-ccs-injection','ssl-date','ssl-dh-params','ssl-enum-ciphers','ssl-heartbleed','ssl-known-primes','ssl-poodle','sslv2','sslv2-drown'],
+  dns:['dns-brute','dns-cache-snoop','dns-check-zone','dns-nsec-enum','dns-nsid','dns-random-srcport','dns-recursion','dns-service-discovery','dns-zone-transfer'],
+};
+// dedupe 'all' list
+{const seen=new Set(),all=[];Object.values(NSE).forEach(arr=>arr.forEach(s=>{if(!seen.has(s)){seen.add(s);all.push(s);}}));NSE.all=all.sort();}
+const NSE_CATS=['all','auth','brute','default','discovery','exploit','vuln','safe','http','smb','ssh','ssl','dns'];
+
+// ─── Man page links per section ───────────────────────────────────────────────
+const MAN = {
+  hostDisc:  'https://nmap.org/book/man-host-discovery.html',
+  scanTech:  'https://nmap.org/book/man-port-scanning-techniques.html',
+  ports:     'https://nmap.org/book/man-port-specification.html',
+  svcVer:    'https://nmap.org/book/man-version-detection.html',
+  os:        'https://nmap.org/book/man-os-detection.html',
+  timing:    'https://nmap.org/book/man-performance.html',
+  evasion:   'https://nmap.org/book/man-bypass-firewalls-ids.html',
+  output:    'https://nmap.org/book/man-output.html',
+  scripts:   'https://nmap.org/book/man-nse.html',
+};
+
+// ─── Section definitions ──────────────────────────────────────────────────────
+// xg=exclusive group | aa=auto-advance | ni/it/id/ip=input | build(v)=formatter
+// Groups within a section defined by grp property in opts
+const SECS = [
+  {
+    id:'hostDisc', label:'Host Discovery',
+    groups:[
+      {label:'ping methods — combine freely',opts:[
+        {l:'-PS',f:'-PS',d:'TCP SYN ping on port 80 — good when ICMP is blocked by firewall'},
+        {l:'-PA',f:'-PA',d:'TCP ACK ping — reaches hosts that filter inbound SYN packets'},
+        {l:'-PU',f:'-PU',d:'UDP ping — when both ICMP and TCP are filtered'},
+        {l:'-PE',f:'-PE',d:'ICMP echo request — classic ping, often blocked by firewalls'},
+        {l:'-PP',f:'-PP',d:'ICMP timestamp ping — sometimes passes strict ICMP filters'},
+        {l:'-PM',f:'-PM',d:'ICMP netmask request — another ICMP discovery variant'},
+        {l:'-PR',f:'-PR',d:'ARP ping — LAN only, bypasses IP filters, extremely reliable'},
+      ]},
+      {label:'host treatment — choose one',opts:[
+        {l:'-Pn  skip ping',f:'-Pn',xg:'ht',d:'Treat all hosts as online — skip ping, go straight to port scan'},
+        {l:'-sn  ping only',f:'-sn',xg:'ht',d:'Ping scan only — check liveness without any port scanning'},
+      ]},
+      {label:'dns resolution — choose one',opts:[
+        {l:'-n  no dns',f:'-n',xg:'dns',d:'Never resolve DNS — significantly speeds up large-scale scans'},
+        {l:'-R  always dns',f:'-R',xg:'dns',d:'Always resolve DNS, even for hosts that appear offline'},
+      ]},
+    ]
+  },
+  {
+    id:'scanTech', label:'Scan Technique',
+    groups:[
+      {label:'tcp method — choose one',opts:[
+        {l:'-sS  SYN stealth',f:'-sS',xg:'tcp',aa:true,d:'TCP SYN half-open — stealthy, fast, most popular. Requires root/admin'},
+        {l:'-sT  TCP connect', f:'-sT',xg:'tcp',aa:true,d:'Full TCP connect — no root needed, louder and more detectable'},
+        {l:'-sA  ACK',         f:'-sA',xg:'tcp',aa:true,d:'TCP ACK — maps firewall rules, does not identify open ports directly'},
+        {l:'-sW  Window',      f:'-sW',xg:'tcp',aa:true,d:'ACK variant exploiting TCP window field — system-dependent accuracy'},
+        {l:'-sM  Maimon',      f:'-sM',xg:'tcp',aa:true,d:'FIN/ACK probe — named after Uriel Maimon who discovered this method'},
+        {l:'-sN  Null',        f:'-sN',xg:'tcp',aa:true,d:'No TCP flags set — evades some non-stateful firewalls and IDS'},
+        {l:'-sF  FIN',         f:'-sF',xg:'tcp',aa:true,d:'Only FIN flag — classic IDS evasion, unreliable on Windows hosts'},
+        {l:'-sX  Xmas',        f:'-sX',xg:'tcp',aa:true,d:'FIN+PSH+URG flags — "lights up like a Christmas tree"'},
+      ]},
+      {label:'add udp — combine with any tcp method',opts:[
+        {l:'-sU  UDP scan',f:'-sU',d:'Scan UDP ports alongside the TCP method — finds UDP-only services'},
+      ]},
+    ]
+  },
+  {
+    id:'ports', label:'Port Scope',
+    groups:[
+      {label:'port range — choose one',opts:[
+        {l:'-p-  all 65535',    f:'-p-',                  xg:'r',d:'Scan every single port — most thorough but slowest'},
+        {l:'-F  fast / top 100',f:'-F',                   xg:'r',d:'Fast mode — top 100 most common ports from nmap-services'},
+        {l:'-p 1-1024',         f:'-p 1-1024',            xg:'r',d:'Well-known IANA port range — all privileged ports'},
+        {l:'-p web',            f:'-p 80,443,8080,8443',  xg:'r',d:'Common web ports: 80, 443, 8080, 8443'},
+        {l:'--top-ports N',     f:'--top-ports',          xg:'r',ni:true,it:'number',id:'1000',ip:'N',d:'Top N most common ports from nmap-services database'},
+        {l:'-p custom',         f:'-p',                   xg:'r',ni:true,it:'text',id:'',ip:'22,80,443',d:'Custom list (22,80,443) or range (1-8080) — comma-separated'},
+      ]},
+      {label:'modifiers',opts:[
+        {l:'--open',          f:'--open',         d:'Only show open ports — omit filtered and closed from output'},
+        {l:'--exclude-ports', f:'--exclude-ports',ni:true,it:'text',id:'',ip:'9100,515',d:'Exclude specific ports from the scan entirely'},
+      ]},
+    ]
+  },
+  {
+    id:'svcVer', label:'Service / Version',
+    groups:[
+      {label:'detection mode — choose one',opts:[
+        {l:'-sV  version detect',f:'-sV',xg:'sv',d:'Probe open ports to determine service name and version info'},
+        {l:'-A  aggressive',     f:'-A', xg:'sv',aa:true,d:'All-in: OS + version + default scripts + traceroute (implies -sV -O -sC)'},
+      ]},
+      {label:'probe intensity — only with -sV (not -A)',id:'svIntensity',opts:[
+        {l:'0  light', f:'-sV --version-intensity 0',xg:'vi',d:'Lightest probe set — fastest but least accurate version detection'},
+        {l:'5  medium',f:'-sV --version-intensity 5',xg:'vi',d:'Balanced depth — good accuracy without exhaustive probing'},
+        {l:'9  max',   f:'-sV --version-intensity 9',xg:'vi',d:'All probes tried — most accurate but significantly slower'},
+      ]},
+    ]
+  },
+  {
+    id:'os', label:'OS Detection',
+    groups:[
+      {label:'choose one',opts:[
+        {l:'-O',               f:'-O',                xg:'os',aa:true,d:'Enable TCP/IP stack fingerprinting for OS detection'},
+        {l:'-O --osscan-guess',f:'-O --osscan-guess', xg:'os',aa:true,d:'Guess OS aggressively when no exact fingerprint match found'},
+        {l:'-O --osscan-limit',f:'-O --osscan-limit', xg:'os',aa:true,d:'Only try OS detection on hosts with at least one open port'},
+      ]},
+    ]
+  },
+  {
+    id:'timing', label:'Timing & Performance',
+    groups:[
+      {label:'timing template — choose one',opts:[
+        {l:'-T0  paranoid',   f:'-T0',xg:'T',aa:true,d:'One probe every 5 min — maximum stealth, evades most IDS detection'},
+        {l:'-T1  sneaky',     f:'-T1',xg:'T',aa:true,d:'Very slow timing — designed for evading IDS, slower than polite'},
+        {l:'-T2  polite',     f:'-T2',xg:'T',aa:true,d:'Reduced speed to lower bandwidth usage and target load'},
+        {l:'-T3  normal',     f:'-T3',xg:'T',aa:true,d:'Default timing — what nmap uses automatically without any -T flag'},
+        {l:'-T4  aggressive', f:'-T4',xg:'T',aa:true,d:'Faster — assumes a reliable, low-latency network connection'},
+        {l:'-T5  insane',     f:'-T5',xg:'T',aa:true,d:'Maximum speed — may miss ports on slow or congested networks'},
+      ]},
+      {label:'rate control — add alongside timing template',opts:[
+        {l:'--min-rate N',    f:'--min-rate',       ni:true,it:'number',id:'5000',ip:'pkt/s',d:'Send packets no slower than N per second — overrides T template floor'},
+        {l:'--max-rate N',    f:'--max-rate',       ni:true,it:'number',id:'1000',ip:'pkt/s',d:'Cap packet send rate at N per second — hard ceiling on speed'},
+        {l:'--min-parallelism',f:'--min-parallelism',ni:true,it:'number',id:'100',ip:'N',d:'Minimum number of outstanding parallel probes at any time'},
+        {l:'--max-retries N', f:'--max-retries',    ni:true,it:'number',id:'3',ip:'N',d:'Max retransmissions per port before giving up on it'},
+        {l:'--host-timeout',  f:'--host-timeout',   ni:true,it:'text',id:'30m',ip:'30m',d:'Abandon a host after this time — useful for firewalled hosts (30m, 1h)'},
+      ]},
+    ]
+  },
+  {
+    id:'evasion', label:'Evasion / Spoof',
+    groups:[
+      {label:'packet manipulation',opts:[
+        {l:'-f  fragment',      f:'-f',                d:'Fragment packets into 8-byte chunks to confuse packet filters'},
+        {l:'-f -f  double frag',f:'-f -f',             d:'Double fragmentation — reduces to minimum 8-byte fragment size'},
+        {l:'-D RND:N  decoys',  f:'',                  ni:true,it:'number',id:'10',ip:'N',build:v=>`-D RND:${v||'10'}`,d:'Cloak scan with N random decoy IPs to obscure the real source'},
+        {l:'--data-length N',   f:'--data-length',     ni:true,it:'number',id:'25',ip:'bytes',d:'Append N random bytes to packets to alter their traffic signature'},
+        {l:'--badsum',          f:'--badsum',           d:'Send invalid TCP/UDP checksums — reveals lazy or buggy firewall rules'},
+        {l:'--ttl N',           f:'--ttl',             ni:true,it:'number',id:'64',ip:'hops',d:'Set IP TTL field manually to limit how far packets can route'},
+      ]},
+      {label:'spoofing',opts:[
+        {l:'--source-port N',   f:'--source-port',     ni:true,it:'number',id:'53',ip:'port',d:'Spoof source port — 53 (DNS) and 80 (HTTP) often bypass firewall rules'},
+        {l:'--randomize-hosts', f:'--randomize-hosts', d:'Randomize target scan order — less detectable than sequential scans'},
+        {l:'--spoof-mac',       f:'--spoof-mac',       ni:true,it:'text',id:'0',ip:'mac/0',d:'Spoof MAC address — 0 = random, or specify a vendor OUI prefix'},
+      ]},
+    ]
+  },
+  {
+    id:'output', label:'Output',
+    groups:[
+      {label:'verbosity — choose one',opts:[
+        {l:'-v  verbose',    f:'-v',     xg:'vb',d:'Increase verbosity — more scan progress and detail shown'},
+        {l:'-vv  very',      f:'-vv',    xg:'vb',d:'Very verbose — maximum terminal output with all detail'},
+        {l:'-d  debug',      f:'-d',     xg:'vb',d:'Debug output — very detailed, primarily for troubleshooting nmap itself'},
+      ]},
+      {label:'extras — combine freely',opts:[
+        {l:'--reason',       f:'--reason',      d:'Show the reason each port is in its state (syn-ack, reset, etc)'},
+        {l:'--packet-trace', f:'--packet-trace', d:'Show every packet sent and received during the scan'},
+        {l:'--open',         f:'--open',         d:'Only display open ports — suppress filtered and closed ports'},
+      ]},
+      {label:'save to file — choose format',opts:[
+        {l:'-oN  normal',    f:'-oN scan.txt',   xg:'fl',d:'Save in human-readable format to scan.txt'},
+        {l:'-oX  XML',       f:'-oX scan.xml',   xg:'fl',d:'XML output — importable by Zenmap, Metasploit, and other tools'},
+        {l:'-oG  greppable', f:'-oG scan.gnmap',  xg:'fl',d:'Greppable format — easy to parse with grep, awk, and scripts'},
+        {l:'-oA  all formats',f:'-oA scan',      xg:'fl',d:'Save all three formats simultaneously to scan.{nmap,xml,gnmap}'},
+      ]},
+    ]
+  },
+  { id:'scripts', label:'NSE Scripts', nse:true },
+];
+
+// ─── Playbook data ────────────────────────────────────────────────────────────
+const PB_CATS = ['all','ctf','recon','stealth','web','smb','services','vuln','firewall','discovery'];
+
+const PLAYBOOK = [
+  // CTF
+  { id:'ctf-1', cat:'ctf', title:'CTF initial scan',
+    cmd:'nmap -sC -sV -oA scan <TARGET>',
+    desc:'Classic starting point for any CTF box. Default scripts + version detection + save all three output formats. Run this first.' },
+  { id:'ctf-2', cat:'ctf', title:'Fast full-port sweep',
+    cmd:'nmap -p- --min-rate 5000 -T4 --open <TARGET>',
+    desc:'Blast through all 65535 ports at max rate. Use to find non-standard ports before running a targeted service scan.' },
+  { id:'ctf-3', cat:'ctf', title:'Targeted deep scan',
+    cmd:'nmap -sC -sV -p 22,80,443,8080 -T4 <TARGET>',
+    desc:'Deep scan on specific ports discovered in fast sweep. Substitute comma-list of found ports.' },
+  { id:'ctf-4', cat:'ctf', title:'UDP top ports',
+    cmd:'nmap -sU --top-ports 100 -T4 <TARGET>',
+    desc:'UDP scan top 100 most common ports. Often reveals SNMP, TFTP, NFS — overlooked by TCP-only scans.' },
+
+  // Recon
+  { id:'rec-1', cat:'recon', title:'Aggressive full recon',
+    cmd:'nmap -sS -sV -O -A -T4 -p- <TARGET>',
+    desc:'Full-spectrum: all ports, OS detection, version, default scripts, traceroute. Loud — use only when noise doesn\'t matter.' },
+  { id:'rec-2', cat:'recon', title:'Version + vuln recon',
+    cmd:'nmap -sV -sC --script=vuln -oA vuln-scan <TARGET>',
+    desc:'Default scripts + vulnerability category scripts in one pass. Great for rapid attack surface mapping.' },
+  { id:'rec-3', cat:'recon', title:'Deep version all ports',
+    cmd:'nmap -sV -p- --version-intensity 9 <TARGET>',
+    desc:'Exhaustive version probing on every port. Use when initial scan shows unknown or misidentified services.' },
+  { id:'rec-4', cat:'recon', title:'Banner grab everything',
+    cmd:'nmap -sV --script=banner -p- -T4 --open <TARGET>',
+    desc:'Grab raw service banners from all open ports. Fast triage for identifying services without full version probing.' },
+
+  // Discovery
+  { id:'disc-1', cat:'discovery', title:'Ping sweep subnet',
+    cmd:'nmap -sn 192.168.1.0/24',
+    desc:'ICMP + TCP SYN/ACK ping sweep. Maps all live hosts on a /24 before port scanning. Standard LAN recon.' },
+  { id:'disc-2', cat:'discovery', title:'ARP sweep (LAN)',
+    cmd:'nmap -PR -sn 192.168.1.0/24',
+    desc:'ARP-only discovery on local network. Bypasses IP-level filters and firewalls. Most reliable on LAN.' },
+  { id:'disc-3', cat:'discovery', title:'Large network sweep',
+    cmd:'nmap -sn -T4 --open 10.0.0.0/8',
+    desc:'Fast sweep of a full /8 (16M hosts). Suitable for internal pentest scoping.' },
+
+  // Stealth
+  { id:'stl-1', cat:'stealth', title:'Full evasion stack',
+    cmd:'nmap -sS -T2 -f --data-length 200 -D RND:15 --source-port 53 -Pn <TARGET>',
+    desc:'Fragment packets + 15 random decoys + DNS port spoof + polite timing. Evades most DPI and signature-based IDS.' },
+  { id:'stl-2', cat:'stealth', title:'FIN stealth scan',
+    cmd:'nmap -sF -Pn -T2 <TARGET>',
+    desc:'Only FIN flag — bypasses non-stateful firewalls that only block SYN. Unreliable on Windows hosts.' },
+  { id:'stl-3', cat:'stealth', title:'Xmas tree scan',
+    cmd:'nmap -sX -Pn -T2 <TARGET>',
+    desc:'FIN+PSH+URG flags. Evades some IDS and stateless packet filters. Systems not RFC 793 compliant may behave unexpectedly.' },
+  { id:'stl-4', cat:'stealth', title:'Fragmented decoy',
+    cmd:'nmap -sS -f -f --mtu 8 --data-length 100 -T2 -Pn <TARGET>',
+    desc:'Double-fragment at 8-byte MTU. Heavy packet fragmentation defeats most deep packet inspection engines.' },
+  { id:'stl-5', cat:'stealth', title:'Slow paranoid SYN',
+    cmd:'nmap -sS -T0 --max-retries 1 -Pn <TARGET>',
+    desc:'One probe every 5 minutes. Near-zero IDS noise. Use for very sensitive environments where detection is critical.' },
+
+  // Web
+  { id:'web-1', cat:'web', title:'Web service fingerprint',
+    cmd:'nmap -sV -p 80,443,8080,8443,8888 --script=http-title,http-headers,http-server-header,http-methods <TARGET>',
+    desc:'Fingerprint web services: page titles, response headers, server version, allowed HTTP methods.' },
+  { id:'web-2', cat:'web', title:'Web enumeration',
+    cmd:'nmap -p 80,443 --script=http-enum,http-robots.txt,http-git,http-php-version <TARGET>',
+    desc:'Directory bruteforce + /robots.txt + exposed .git repo check + PHP version detection.' },
+  { id:'web-3', cat:'web', title:'SSL/TLS full audit',
+    cmd:'nmap -sV -p 443,8443 --script=ssl-cert,ssl-enum-ciphers,ssl-heartbleed,ssl-poodle,ssl-dh-params <TARGET>',
+    desc:'Full TLS audit: certificate info, cipher strength grades A-F, Heartbleed, POODLE, Logjam check.' },
+  { id:'web-4', cat:'web', title:'Shellshock check',
+    cmd:'nmap -p 80,443 --script=http-shellshock <TARGET>',
+    desc:'Test CGI scripts for Shellshock bash vulnerability (CVE-2014-6271). High-value check on older Linux servers.' },
+  { id:'web-5', cat:'web', title:'Web app vuln scan',
+    cmd:'nmap -p 80,443 --script=http-sql-injection,http-dombased-xss,http-csrf,http-slowloris-check <TARGET>',
+    desc:'Automated web vulnerability checks: SQL injection, DOM XSS, CSRF, and Slowloris DoS susceptibility.' },
+
+  // SMB
+  { id:'smb-1', cat:'smb', title:'EternalBlue check',
+    cmd:'nmap -p 445 --script=smb-vuln-ms17-010 <TARGET>',
+    desc:'Test for MS17-010 (EternalBlue) — the SMBv1 RCE used by WannaCry and NotPetya. Critical on Windows < Server 2019.' },
+  { id:'smb-2', cat:'smb', title:'SMB full enumeration',
+    cmd:'nmap -p 445 --script=smb-enum-shares,smb-enum-users,smb-os-discovery,smb-security-mode <TARGET>',
+    desc:'Enumerate SMB shares, user accounts, OS version, and signing config. Key info for lateral movement.' },
+  { id:'smb-3', cat:'smb', title:'SMB vuln sweep',
+    cmd:'nmap -p 445 --script=smb-vuln-ms08-067,smb-vuln-ms17-010,smb-vuln-conficker <TARGET>',
+    desc:'Check for MS08-067 (Conficker worm vector), EternalBlue, and active Conficker infection in one pass.' },
+
+  // Services
+  { id:'svc-1', cat:'services', title:'FTP audit',
+    cmd:'nmap -p 21 --script=ftp-anon,ftp-brute,ftp-syst <TARGET>',
+    desc:'FTP anonymous login check + credential bruteforce + system type identification.' },
+  { id:'svc-2', cat:'services', title:'SSH audit',
+    cmd:'nmap -p 22 --script=ssh-auth-methods,ssh2-enum-algos,ssh-hostkey <TARGET>',
+    desc:'List SSH auth methods, enumerate supported cipher/MAC/KEX algorithms, fingerprint host key.' },
+  { id:'svc-3', cat:'services', title:'SNMP audit',
+    cmd:'nmap -sU -p 161 --script=snmp-info,snmp-communities,snmp-brute <TARGET>',
+    desc:'UDP SNMP scan — community string bruteforce + system MIB extraction. Often exposes full device config.' },
+  { id:'svc-4', cat:'services', title:'MySQL audit',
+    cmd:'nmap -p 3306 --script=mysql-info,mysql-databases,mysql-empty-password,mysql-brute <TARGET>',
+    desc:'MySQL fingerprint, database listing, empty password check, and credential bruteforce.' },
+  { id:'svc-5', cat:'services', title:'SMTP audit',
+    cmd:'nmap -p 25,465,587 --script=smtp-commands,smtp-open-relay,smtp-enum-users <TARGET>',
+    desc:'SMTP capability listing, open relay check (spam abuse vector), and user enumeration via VRFY/EXPN.' },
+  { id:'svc-6', cat:'services', title:'DNS zone transfer',
+    cmd:'nmap -p 53 --script=dns-zone-transfer,dns-recursion,dns-brute <TARGET>',
+    desc:'Attempt AXFR zone transfer + check for open recursion + subdomain brute-force. DNS misconfig goldmine.' },
+  { id:'svc-7', cat:'services', title:'LDAP audit',
+    cmd:'nmap -p 389,636 --script=ldap-rootdse,ldap-brute <TARGET>',
+    desc:'Pull LDAP root DSE info (domain, naming contexts) + credential bruteforce against directory service.' },
+
+  // Firewall
+  { id:'fw-1', cat:'firewall', title:'Firewall rule mapping',
+    cmd:'nmap -sA -T4 <TARGET>',
+    desc:'TCP ACK scan — identifies unfiltered vs filtered ports. Maps firewall ruleset without revealing open ports.' },
+  { id:'fw-2', cat:'firewall', title:'Badsum firewall probe',
+    cmd:'nmap --badsum -sS <TARGET>',
+    desc:'Send invalid TCP checksums. Hosts ignore them; lazy firewall/IDS middleware may respond — reveals security infrastructure.' },
+
+  // Vuln
+  { id:'vul-1', cat:'vuln', title:'Full vuln scan',
+    cmd:'nmap -sV --script=vuln -oA vuln-<TARGET> <TARGET>',
+    desc:'Run entire vuln NSE category against discovered services. Checks 50+ known CVEs and misconfigurations.' },
+  { id:'vul-2', cat:'vuln', title:'Heartbleed + POODLE',
+    cmd:'nmap -p 443 --script=ssl-heartbleed,ssl-poodle,ssl-ccs-injection <TARGET>',
+    desc:'Critical SSL vuln check: Heartbleed memory leak (CVE-2014-0160), POODLE downgrade (CVE-2014-3566), CCS injection.' },
+];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+const S = {
+  target:'', valid:false,
+  active:-1, reached:-1,
+  sel:{},
+  nseSel:new Set(),
+  nseCat:'all', nseQ:'',
+  pbCat:'all', pbQ:'',
+  tool:'nmap',
+};
+
+// ─── Target validation ────────────────────────────────────────────────────────
+function validateTarget(s) {
+  if (!s) return false;
+  // Reject URLs
+  if (/^https?:\/\//i.test(s)) return false;
+  // Reject trailing dot
+  if (s.endsWith('.')) return false;
+
+  // If starts with a digit → must be a complete IP (all 4 octets), CIDR, or range
+  if (/^\d/.test(s)) {
+    // Full IPv4 optionally with /prefix or -lastoctet
+    const ipFull  = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(\/\d{1,2})?$/;
+    const ipRange = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})-\d{1,3}$/;
+    if (!ipFull.test(s) && !ipRange.test(s)) return false;
+    // Validate octets 0-255
+    const m = s.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)/);
+    return m && [1,2,3,4].every(i => parseInt(m[i]) <= 255);
+  }
+
+  // Starts with letter → hostname
+  // Must have at least one dot (requires TLD), no trailing dot, valid chars
+  // Exception: 'localhost'
+  if (s.toLowerCase() === 'localhost') return true;
+  const hostname = /^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+  return hostname.test(s);
+}
+
+// ─── Build all opts flat list from groups ─────────────────────────────────────
+function getOpts(sec) {
+  if (sec.nse || sec.pb || !sec.groups) return [];
+  return sec.groups.flatMap((g,gi) => g.opts.map((o,oi) => ({...o, _gi:gi, _oi:oi})));
+}
+function getOptByFlatIdx(sec, flatIdx) {
+  return getOpts(sec)[flatIdx];
+}
+function flatIdx(sec, grpIdx, optIdx) {
+  let n=0;
+  for (let g=0;g<grpIdx;g++) n+=sec.groups[g].opts.length;
+  return n+optIdx;
+}
+
+// ─── Flags ────────────────────────────────────────────────────────────────────
+function fmtFlag(opt, v) {
+  if (opt.build) return opt.build(v);
+  if (!opt.f) return '';
+  if (opt.ni) return `${opt.f} ${v!=null?v:(opt.id||'')}`.trim();
+  return opt.f;
+}
+function getFlags() {
+  const out = [];
+  for (const sec of SECS) {
+    if (sec.nse) { if(S.nseSel.size) out.push(`--script=${[...S.nseSel].join(',')}`); continue; }
+    if (sec.pb) continue;  // playbook doesn't contribute flags
+    for (const {fi, v} of (S.sel[sec.id]||[])) {
+      const opt = getOpts(sec)[fi];
+      if (!opt) continue;
+      const f = fmtFlag(opt, v);
+      if (f) out.push(f);
+    }
+  }
+  return out;
+}
+
+// ─── Command builders ─────────────────────────────────────────────────────────
+function portStr() {
+  const portSec = SECS[2];
+  for (const {fi,v} of (S.sel['ports']||[])) {
+    const o = getOpts(portSec)[fi];
+    if (!o) continue;
+    if (o.f==='-p-') return '0-65535';
+    if (o.f==='-F')  return '1-100';
+    if (o.ni && o.f==='-p') return v||'';
+    if (o.ni && o.f==='--top-ports') return `1-${v||'1000'}`;
+    if (o.f==='-p 80,443,8080,8443') return '80,443,8080,8443';
+    if (o.f==='-p 1-1024') return '1-1024';
+  }
+  return '1-65535';
+}
+
+function buildCmd(tool) {
+  const flags = getFlags();
+  const t = S.target || '<target>';
+  switch(tool) {
+    case 'nmap':     return ['nmap',...flags,t].join(' ');
+    case 'rustscan': {
+      const p = portStr();
+      return `rustscan -a ${t} -r ${p}${flags.length?' -- '+flags.join(' '):''}`;
+    }
+  }
+}
+
+// ─── Command strip ────────────────────────────────────────────────────────────
+function updateCmd() {
+  const el = document.getElementById('cmdLine');
+  if (!S.target) { el.innerHTML='<span class="cd">enter a target to begin</span>'; return; }
+
+  const flags = getFlags();
+  const t = S.target;
+  const tClass = S.valid ? 'ca' : 'ca-err';
+  let html = '';
+
+  if (S.tool==='nmap') {
+    html = `<span class="ct">nmap</span>`;
+    flags.forEach(f => { html+=` <span class="cf">${escHtml(f)}</span>`; });
+    html += ` <span class="${tClass}">${escHtml(t)}</span>`;
+  } else if (S.tool==='rustscan') {
+    const p = portStr();
+    html = `<span class="ct">rustscan</span> <span class="cf">-a</span> <span class="${tClass}">${escHtml(t)}</span> <span class="cf">-r ${escHtml(p)}</span>`;
+    if (flags.length) html += ` <span class="cf">--</span> ` + flags.map(f=>`<span class="cf">${escHtml(f)}</span>`).join(' ');
+  }
+  el.innerHTML = html;
+}
+
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function setTool(tool) {
+  S.tool = tool;
+  document.querySelectorAll('.ttab').forEach(b=>b.classList.toggle('on',b.dataset.tool===tool));
+  updateCmd();
+}
+
+function copyCmd() {
+  if (!S.target) return;
+  navigator.clipboard.writeText(buildCmd(S.tool)).then(()=>{
+    const b = document.getElementById('cpBtn');
+    b.textContent='copied ✓'; b.classList.add('ok');
+    setTimeout(()=>{b.textContent='copy';b.classList.remove('ok');},1600);
+  });
+}
+
+// ─── Build cards ──────────────────────────────────────────────────────────────
+function buildCards() {
+  const stack = document.getElementById('stack');
+  SECS.forEach((sec,si) => {
+    const card = document.createElement('div');
+    card.className = 'card pending';
+    card.id = 'card-'+sec.id;
+
+    const manLink = MAN[sec.id]
+      ? `<a class="sref" href="${MAN[sec.id]}" target="_blank" rel="noopener" onclick="event.stopPropagation()">man ↗</a>`
+      : '';
+
+    let bodyHtml = '';
+    if (sec.nse) {
+      const catBtns = NSE_CATS.map(c =>
+        `<button class="ncat${c==='all'?' on':''}" data-cat="${c}" onclick="nseSetCat('${c}')">${c}</button>`
+      ).join('');
+      bodyHtml = `
+        <div class="nse-wrap">
+          <input class="nse-search" type="search" placeholder="search all scripts…" oninput="nseFilter(this.value)" autocomplete="off">
+          <div class="nse-cats">${catBtns}</div>
+          <div class="nse-desc empty" id="nseDesc">hover a script name to see what it does</div>
+          <div class="nse-list" id="nseList"></div>
+        </div>`;
+    } else {
+      let groupsHtml = '';
+      let globalFlatIdx = 0;
+      sec.groups.forEach((grp, gi) => {
+        const pillsHtml = grp.opts.map((o, oi) => {
+          const fi = globalFlatIdx + oi;
+          const vin = o.ni
+            ? `<input class="pval" type="${o.it||'text'}" value="${o.id||''}" placeholder="${o.ip||''}"
+                 data-sec="${sec.id}" data-fi="${fi}"
+                 oninput="onValIn(this)" onclick="event.stopPropagation()">`
+            : '';
+          return `<div class="pill" id="p-${sec.id}-${fi}" data-sec="${sec.id}" data-fi="${fi}"
+                    onclick="togglePill('${sec.id}',${fi})">
+                    <span class="plbl">${o.l}</span>${vin}</div>`;
+        }).join('');
+        globalFlatIdx += grp.opts.length;
+
+        // Special: intensity group gets extra class for show/hide based on sV selection
+        const extraId = grp.id ? ` id="${grp.id}"` : '';
+        const extraClass = sec.id==='svcVer' && gi===1 ? ' sv-intensity' : ' pills';
+        groupsHtml += `
+          <div class="grp-label">${grp.label}</div>
+          <div class="${extraClass.trim()}"${extraId}>${pillsHtml}</div>`;
+      });
+      bodyHtml = `
+        <div class="dbar empty" id="desc-${sec.id}">select a flag — or hover for details</div>
+        ${groupsHtml}`;
+    }
+
+    const isLast = si===SECS.length-1;
+    const footer = isLast ? '' :
+      `<div class="cfoot"><button class="nxtbtn" onclick="advanceTo(${si+1})">next section →</button></div>`;
+
+    card.innerHTML = `
+      <div class="strip" onclick="stripClick(${si})">
+        <span class="snum">${String(si+1).padStart(2,'0')}</span>
+        <span class="sname">${sec.label}</span>
+        ${manLink}
+        <span class="stags" id="st-${sec.id}"></span>
+        <span class="sarr">›</span>
+      </div>
+      <div class="body"><div class="binner">${bodyHtml}${footer}</div></div>`;
+
+    if (!sec.nse) {
+      card.querySelectorAll('.pill').forEach(p => {
+        p.addEventListener('mouseenter', ()=>showDesc(sec.id, +p.dataset.fi));
+        p.addEventListener('mouseleave', ()=>refreshDesc(sec.id));
+      });
+    }
+    stack.appendChild(card);
+  });
+}
+
+// ─── Pill toggle ──────────────────────────────────────────────────────────────
+function togglePill(secId, fi) {
+  const sec = SECS.find(s=>s.id===secId);
+  const opt = getOpts(sec)[fi];
+  if (!S.sel[secId]) S.sel[secId] = [];
+
+  const idx = S.sel[secId].findIndex(s=>s.fi===fi);
+  let isOn;
+
+  if (idx>=0) {
+    S.sel[secId].splice(idx,1);
+    isOn = false;
+  } else {
+    // deselect same exclusive group
+    if (opt.xg) S.sel[secId] = S.sel[secId].filter(s => getOpts(sec)[s.fi]?.xg !== opt.xg);
+    const pill = document.getElementById(`p-${secId}-${fi}`);
+    const vi = pill?.querySelector('.pval');
+    S.sel[secId].push({fi, v: vi ? vi.value : (opt.id||'')});
+    isOn = true;
+  }
+
+  refreshCard(secId);
+  updateCmd();
+
+  // special: show/hide sV intensity group
+  if (secId==='svcVer') updateSvIntensity();
+
+  // auto-advance for single-answer exclusive opts
+  const si = SECS.findIndex(s=>s.id===secId);
+  if (isOn && opt.aa && S.active===si && si<SECS.length-1) {
+    setTimeout(()=>{ if(S.active===si) advanceTo(si+1); }, 360);
+  }
+}
+
+function updateSvIntensity() {
+  const grp = document.querySelector('.sv-intensity');
+  if (!grp) return;
+  // show intensity only if -sV (not -A) is selected
+  const svSel = (S.sel['svcVer']||[]).map(({fi})=>getOpts(SECS[3])[fi]?.f).filter(Boolean);
+  const showInt = svSel.includes('-sV') && !svSel.includes('-A');
+  grp.classList.toggle('show', showInt);
+  // if -A selected, deselect any intensity
+  if (!showInt) {
+    S.sel['svcVer'] = (S.sel['svcVer']||[]).filter(({fi})=>{
+      const o = getOpts(SECS[3])[fi]; return !o || o.xg!=='vi';
+    });
+    refreshCard('svcVer');
+  }
+}
+
+function onValIn(inp) {
+  const e = (S.sel[inp.dataset.sec]||[]).find(s=>s.fi===+inp.dataset.fi);
+  if (e) { e.v=inp.value; updateCmd(); }
+}
+
+// ─── Card state ───────────────────────────────────────────────────────────────
+function stripClick(i) {
+  const c = document.getElementById('card-'+SECS[i].id);
+  const isPending = c.classList.contains('pending');
+  if (isPending) return;
+  // toggle: active→done, done→active
+  if (S.active===i) {
+    // collapse active card (mark done)
+    c.classList.remove('active'); c.classList.add('done');
+    S.active = -1;
+  } else {
+    setActive(i);
+  }
+}
+
+function advanceTo(next) {
+  const cur = S.active>=0 ? S.active : next-1;
+  for (let k=0; k<=cur && k<SECS.length; k++) {
+    const c = document.getElementById('card-'+SECS[k].id);
+    c.classList.remove('active','pending'); c.classList.add('done');
+  }
+  if (next<SECS.length) {
+    S.reached = Math.max(S.reached, next); S.active = next;
+    const nc = document.getElementById('card-'+SECS[next].id);
+    nc.classList.remove('pending','done'); nc.classList.add('active');
+    if (SECS[next].nse) requestAnimationFrame(renderNseList);
+  } else { S.active=-1; }
+}
+
+function setActive(i) {
+  SECS.forEach((sec,k) => {
+    const c = document.getElementById('card-'+sec.id);
+    if (c.classList.contains('active')) { c.classList.remove('active'); c.classList.add('done'); }
+  });
+  S.active = i;
+  const c = document.getElementById('card-'+SECS[i].id);
+  c.classList.remove('done','pending'); c.classList.add('active');
+  if (SECS[i].nse) requestAnimationFrame(renderNseList);
+}
+
+// ─── Card refresh ─────────────────────────────────────────────────────────────
+function refreshCard(secId) {
+  const sec = SECS.find(s=>s.id===secId);
+  if (sec.nse || sec.pb) return;
+  const sels = S.sel[secId]||[];
+  const opts = getOpts(sec);
+
+  opts.forEach((o,fi) => {
+    const p = document.getElementById(`p-${secId}-${fi}`);
+    if (!p) return;
+    const on = sels.some(s=>s.fi===fi);
+    p.classList.toggle('on', on);
+    if (o.ni) {
+      const vi = p.querySelector('.pval');
+      if (vi) { const e=sels.find(s=>s.fi===fi); if(e&&vi.value!==e.v)vi.value=e.v; }
+    }
+  });
+
+  const st = document.getElementById('st-'+secId);
+  if (st) st.innerHTML = sels.map(({fi,v})=>{
+    const t=fmtFlag(opts[fi],v); return t?`<span class="stag">${escHtml(t)}</span>`:'';
+  }).join('');
+
+  refreshDesc(secId);
+}
+
+function showDesc(secId, fi) {
+  const sec = SECS.find(s=>s.id===secId);
+  const o = getOpts(sec)[fi];
+  const d = document.getElementById('desc-'+secId);
+  if (!d||!o) return;
+  const ft = o.build ? o.build(o.id||'…') : o.f || o.l;
+  d.className='dbar'; d.innerHTML=`<span class="fh">${escHtml(ft)}</span> — ${o.d}`;
+}
+
+function refreshDesc(secId) {
+  const sec = SECS.find(s=>s.id===secId);
+  if (sec.nse) return;
+  const sels = S.sel[secId]||[];
+  const d = document.getElementById('desc-'+secId);
+  if (!d) return;
+  if (!sels.length) { d.className='dbar empty'; d.innerHTML='select a flag — or hover for details'; return; }
+  const last = sels[sels.length-1];
+  const o = getOpts(sec)[last.fi];
+  d.className='dbar'; d.innerHTML=`<span class="fh">${escHtml(fmtFlag(o,last.v)||o.l)}</span> — ${o.d}`;
+}
+
+// ─── NSE ─────────────────────────────────────────────────────────────────────
+function nseSetCat(cat) {
+  S.nseCat=cat; S.nseQ='';
+  document.querySelectorAll('.ncat').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));
+  const srch=document.querySelector('.nse-search'); if(srch)srch.value='';
+  renderNseList();
+}
+function nseFilter(q) {
+  S.nseQ=q.toLowerCase().trim();
+  if (S.nseQ && S.nseCat!=='all') {
+    S.nseCat='all';
+    document.querySelectorAll('.ncat').forEach(b=>b.classList.toggle('on',b.dataset.cat==='all'));
+  }
+  renderNseList();
+}
+function renderNseList() {
+  const list=document.getElementById('nseList'); if(!list)return;
+  let scripts = NSE[S.nseCat]||NSE.all;
+  if (S.nseQ) scripts=scripts.filter(s=>s.includes(S.nseQ));
+  if (!scripts.length) { list.innerHTML='<span class="nse-empty">no scripts match</span>'; return; }
+  list.innerHTML=scripts.map(s=>{
+    const on=S.nseSel.has(s);
+    return `<div class="pill${on?' on':''}" onclick="nseToggle('${s}')"
+      onmouseenter="nseShowDesc('${s}')" onmouseleave="nseClearDesc()">
+      <span class="plbl">${s}</span></div>`;
+  }).join('');
+}
+function nseToggle(s) {
+  S.nseSel.has(s)?S.nseSel.delete(s):S.nseSel.add(s);
+  renderNseList(); refreshNseStrip(); updateCmd();
+}
+function nseShowDesc(s) {
+  const d=document.getElementById('nseDesc'); if(!d)return;
+  const desc=NSE_D[s]||'No description available for this script';
+  d.className='nse-desc';
+  d.innerHTML=`<span class="fh">${s}</span> — ${desc}`;
+}
+function nseClearDesc() {
+  const d=document.getElementById('nseDesc'); if(!d)return;
+  if (S.nseSel.size) { nseShowDesc([...S.nseSel].at(-1)); return; }
+  d.className='nse-desc empty'; d.textContent='hover a script name to see what it does';
+}
+function refreshNseStrip() {
+  const st=document.getElementById('st-scripts'); if(!st)return;
+  const arr=[...S.nseSel];
+  st.innerHTML=arr.slice(0,4).map(s=>`<span class="stag">${s}</span>`).join('')+
+    (arr.length>4?`<span class="stag">+${arr.length-4} more</span>`:'');
+}
+
+// ─── Playbook ─────────────────────────────────────────────────────────────────
+function initPlaybook() {
+  // Inject category buttons into standalone section
+  const cats = document.getElementById('pbCats');
+  if (cats) {
+    cats.innerHTML = PB_CATS.map(c =>
+      `<button class="pbcat${c==='all'?' on':''}" data-cat="${c}" onclick="pbSetCat('${c}')">${c}</button>`
+    ).join('');
+  }
+  renderPbList();
+}
+
+function pbSetCat(cat) {
+  S.pbCat=cat; S.pbQ='';
+  document.querySelectorAll('.pbcat').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));
+  const srch=document.querySelector('.pb-search'); if(srch)srch.value='';
+  renderPbList();
+}
+function pbFilter(q) {
+  S.pbQ=q.toLowerCase().trim();
+  if (S.pbQ && S.pbCat!=='all') {
+    S.pbCat='all';
+    document.querySelectorAll('.pbcat').forEach(b=>b.classList.toggle('on',b.dataset.cat==='all'));
+  }
+  renderPbList();
+}
+
+function renderPbList() {
+  const list=document.getElementById('pbList'); if(!list)return;
+  let items = S.pbCat==='all' ? PLAYBOOK : PLAYBOOK.filter(p=>p.cat===S.pbCat);
+  if (S.pbQ) items=items.filter(p=>
+    p.title.toLowerCase().includes(S.pbQ)||
+    p.cmd.toLowerCase().includes(S.pbQ)||
+    p.desc.toLowerCase().includes(S.pbQ)
+  );
+  if (!items.length) { list.innerHTML='<span class="pb-empty">no commands match</span>'; return; }
+  list.innerHTML = items.map(p => {
+    const tgt = S.target||'&lt;TARGET&gt;';
+    const cmdDisplay = pbColorCmd(p.cmd.replace('<TARGET>',`<span class="pa">${tgt}</span>`));
+    const cmdRaw = p.cmd.replace('<TARGET>', S.target||'<TARGET>');
+    return `<div class="pb-item" id="pbi-${p.id}">
+      <div class="pb-head">
+        <span class="pb-title">${p.title}</span>
+        <span class="pb-cat-badge">${p.cat}</span>
+      </div>
+      <div class="pb-cmd">${cmdDisplay}</div>
+      <div class="pb-desc">${p.desc}</div>
+      <div class="pb-copy-row">
+        <button class="pb-copy" id="pbcpy-${p.id}" onclick="pbCopy('${p.id}')">copy command</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function pbColorCmd(cmd) {
+  // Syntax-color the command: tool=green, flags=blue, values already tagged
+  return cmd
+    .replace(/^(nmap|rustscan)/, '<span class="pt">$1</span>')
+    .replace(/(--?[a-zA-Z][\w-]*)/g, '<span class="pf">$1</span>');
+}
+
+function pbCopy(id) {
+  const p = PLAYBOOK.find(x=>x.id===id);
+  if (!p) return;
+  const cmd = p.cmd.replace('<TARGET>', S.target||'<TARGET>');
+  navigator.clipboard.writeText(cmd).then(()=>{
+    const b = document.getElementById('pbcpy-'+id);
+    if (!b) return;
+    b.textContent='copied ✓'; b.classList.add('ok');
+    setTimeout(()=>{ b.textContent='copy command'; b.classList.remove('ok'); }, 1600);
+  });
+}
+
+// ─── Target ───────────────────────────────────────────────────────────────────
+document.getElementById('tIn').addEventListener('input', function() {
+  const prev = S.target;
+  S.target = this.value.trim();
+  S.valid  = validateTarget(S.target);
+
+  this.classList.remove('valid','invalid');
+  if (S.target) this.classList.add(S.valid?'valid':'invalid');
+
+  if (S.target && !prev) {
+    S.reached=0; S.active=0;
+    const c=document.getElementById('card-'+SECS[0].id);
+    c.classList.remove('pending'); c.classList.add('active');
+  }
+  if (!S.target && prev) _reset(true);
+  updateCmd();
+  // refresh pb list if visible (target changes placeholder)
+  if (document.getElementById('pbList')?.children.length) renderPbList();
+});
+
+function clearAll() {
+  const i=document.getElementById('tIn'); i.value=''; i.classList.remove('valid','invalid');
+  S.target=''; S.valid=false;
+  _reset(false); i.focus(); updateCmd();
+}
+
+function _reset(keepInput) {
+  S.active=-1; S.reached=-1; S.sel={}; S.nseSel=new Set();
+  if(!keepInput) S.tool='nmap';
+  SECS.forEach(sec=>{
+    const c=document.getElementById('card-'+sec.id);
+    c.classList.remove('active','done'); c.classList.add('pending');
+    if(sec.nse) refreshNseStrip();
+    else refreshCard(sec.id);
+  });
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+buildCards();
+updateCmd();
+initPlaybook();
+</script>
+</body>
+</html>
