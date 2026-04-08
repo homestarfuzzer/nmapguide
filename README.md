@@ -2,7 +2,7 @@
 
 An interactive, browser-based nmap command builder and reference tool for pentesters, red teamers, and students learning network scanning.
 
-**[→ Live tool](https://YOUR_USERNAME.github.io/nmap-builder/)**
+**[→ Live tool](https://homestarfuzzer.github.io/nmap-builder/)**
 
 ---
 
@@ -43,17 +43,6 @@ Includes a **Playbook** at the bottom: 34+ real-world commands organized by use 
 | NSE Scripts | 100+ scripts across: auth, brute, default, discovery, exploit, vuln, safe, http, smb, ssh, ssl, dns |
 
 ---
-
-## Deploy to GitHub Pages
-
-1. Create a new repo (e.g. `nmap-builder`)
-2. Add `index.html` and `README.md` to the root
-3. Go to **Settings → Pages → Source: main branch, / (root)**
-4. Your tool is live at `https://<username>.github.io/nmap-builder/`
-5. Update the live link at the top of this README
-
----
-
 ## Extending
 
 To add a new nmap section:
