@@ -83,7 +83,6 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
 .ca{color:var(--am)}
 .ca-err{color:var(--rd)}
 .cd{color:var(--t1);font-size:11px}
-.cc{color:var(--t2);font-size:11px;font-style:italic}   /* comment/note style */
 #cpBtn{
   flex-shrink:0;padding:0 14px;background:none;border:none;
   border-left:1px solid var(--b1);font-family:var(--fn);font-size:10px;
@@ -189,6 +188,7 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
 .pval[type=number]{-moz-appearance:textfield}
 .pval[type=number]::-webkit-outer-spin-button,
 .pval[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+.pval.invalid{border-left-color:var(--rd)!important;color:var(--rd)!important}
 
 /* group label within a section */
 .grp-label{
@@ -222,7 +222,7 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
 .nse-desc{min-height:20px;font-size:11px;color:var(--t1);padding:2px 0 6px;border-bottom:1px solid var(--b0)}
 .nse-desc .fh{color:var(--bl)}
 .nse-desc.empty{color:var(--t2);font-size:10px}
-.nse-list{display:flex;flex-wrap:wrap;gap:4px;max-height:190px;overflow-y:auto}
+.nse-list{display:flex;flex-wrap:wrap;gap:4px;max-height:190px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--b2) var(--s2)}
 .nse-list::-webkit-scrollbar{width:3px}
 .nse-list::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
 .nse-empty{font-size:11px;color:var(--t2);font-style:italic;padding:4px 0}
@@ -271,7 +271,7 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
 }
 .pbcat:hover{color:var(--t0);border-color:var(--b2)}
 .pbcat.on{color:var(--pu);border-color:var(--pu);background:rgba(187,154,247,.09)}
-.pb-list{display:flex;flex-direction:column;gap:5px;max-height:500px;overflow-y:auto;padding-bottom:2rem}
+.pb-list{display:flex;flex-direction:column;gap:5px;max-height:500px;overflow-y:auto;padding-bottom:2rem;scrollbar-width:thin;scrollbar-color:var(--b2) var(--s2)}
 .pb-list::-webkit-scrollbar{width:3px}
 .pb-list::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
 .pb-item{
@@ -302,7 +302,15 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
 .pb-copy.ok{color:var(--g0);border-color:var(--g0);background:var(--g1)}
 .pb-empty{font-size:11px;color:var(--t2);font-style:italic;padding:4px 0}
 
+/* focus outlines for keyboard navigation */
+.pill:focus-visible,.strip:focus-visible,.ncat:focus-visible,.pbcat:focus-visible,
+.nxtbtn:focus-visible,#cpBtn:focus-visible,.tclear:focus-visible,.ttab:focus-visible{
+  outline:2px solid var(--bl);outline-offset:2px
+}
+/* clear button hidden until input has value */
+.tclear.hidden{display:none}
 @media(max-width:600px){#tIn{font-size:16px}.card.done{box-shadow:0 2px 0 rgba(0,0,0,.4)}}
+@media(prefers-reduced-motion:reduce){.radar-sweep,.radar-ping1,.radar-ping2,.radar-ping3{animation:none}}
 </style>
 </head>
 <body>
@@ -353,9 +361,9 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
 </div>
 
 <!-- Tool tabs -->
-<div class="tooltabs">
-  <button class="ttab on" data-tool="nmap" onclick="setTool('nmap')">nmap</button>
-  <button class="ttab" data-tool="rustscan" onclick="setTool('rustscan')"
+<div class="tooltabs" role="tablist" aria-label="Scanner tool">
+  <button class="ttab on" role="tab" aria-selected="true" data-tool="nmap" onclick="setTool('nmap')">nmap</button>
+  <button class="ttab" role="tab" aria-selected="false" data-tool="rustscan" onclick="setTool('rustscan')"
     title="rustscan — ultra-fast async port scanner. Discovers open ports first, then passes them to nmap for deep analysis. Same flags, faster discovery.">
     rustscan <span style="font-size:9px;color:var(--t1);margin-left:2px">⚡</span>
   </button>
@@ -363,16 +371,17 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
 
 <!-- Command strip — only command display -->
 <div class="cmdstrip">
-  <div id="cmdLine"><span class="cd">enter a target to begin</span></div>
-  <button id="cpBtn" onclick="copyCmd()">copy</button>
+  <div id="cmdLine" aria-live="polite" aria-label="Built command"><span class="cd">enter a target to begin</span></div>
+  <button id="cpBtn" onclick="copyCmd()" aria-label="Copy command to clipboard">copy</button>
 </div>
 
 <!-- Target -->
 <div class="trow">
-  <div class="tlbl"><span>$</span>target</div>
+  <label class="tlbl" for="tIn"><span>$</span>target</label>
   <input id="tIn" type="text" placeholder="ip · hostname · cidr · range"
-         autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="none">
-  <button class="tclear" onclick="clearAll()">×</button>
+         autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="none"
+         inputmode="url" enterkeyhint="go" aria-label="Scan target — IP, hostname, CIDR, or range">
+  <button class="tclear hidden" onclick="clearAll()" aria-label="Clear target">×</button>
 </div>
 
 <!-- Card stack -->
@@ -397,7 +406,9 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
   <div class="pb-wrap">
     <div style="display:flex;gap:8px;align-items:center">
       <input class="pb-search" type="search" placeholder="search commands, flags, or categories…"
-             oninput="pbFilter(this.value)" autocomplete="off">
+             oninput="pbFilterDebounced(this.value)"
+             onkeydown="if(event.key==='Escape'){this.value='';pbFilter('');}"
+             autocomplete="off" aria-label="Search playbook commands">
     </div>
     <div class="pb-cats" id="pbCats">
       <!-- injected by JS -->
@@ -407,6 +418,15 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
 </div>
 
 <script>
+// ─── Constants ────────────────────────────────────────────────────────────────
+const AUTO_ADVANCE_MS = 360;
+const COPY_RESET_MS   = 1600;
+
+// ─── Debounce helper ──────────────────────────────────────────────────────────
+function debounce(fn, ms) {
+  let t; return (...a) => { clearTimeout(t); t = setTimeout(()=>fn(...a), ms); };
+}
+
 // ─── NSE descriptions ─────────────────────────────────────────────────────────
 const NSE_D = {
   'ftp-anon':'Tests if FTP server allows anonymous login without credentials',
@@ -609,7 +629,7 @@ const SECS = [
         {l:'-F  fast / top 100',f:'-F',                   xg:'r',d:'Fast mode — top 100 most common ports from nmap-services'},
         {l:'-p 1-1024',         f:'-p 1-1024',            xg:'r',d:'Well-known IANA port range — all privileged ports'},
         {l:'-p web',            f:'-p 80,443,8080,8443',  xg:'r',d:'Common web ports: 80, 443, 8080, 8443'},
-        {l:'--top-ports N',     f:'--top-ports',          xg:'r',ni:true,it:'number',id:'1000',ip:'N',d:'Top N most common ports from nmap-services database'},
+        {l:'--top-ports N',     f:'--top-ports',          xg:'r',ni:true,it:'number',id:'1000',ip:'N',imin:1,imax:65535,d:'Top N most common ports from nmap-services database'},
         {l:'-p custom',         f:'-p',                   xg:'r',ni:true,it:'text',id:'',ip:'22,80,443',d:'Custom list (22,80,443) or range (1-8080) — comma-separated'},
       ]},
       {label:'modifiers',opts:[
@@ -654,10 +674,10 @@ const SECS = [
         {l:'-T5  insane',     f:'-T5',xg:'T',aa:true,d:'Maximum speed — may miss ports on slow or congested networks'},
       ]},
       {label:'rate control — add alongside timing template',opts:[
-        {l:'--min-rate N',    f:'--min-rate',       ni:true,it:'number',id:'5000',ip:'pkt/s',d:'Send packets no slower than N per second — overrides T template floor'},
-        {l:'--max-rate N',    f:'--max-rate',       ni:true,it:'number',id:'1000',ip:'pkt/s',d:'Cap packet send rate at N per second — hard ceiling on speed'},
-        {l:'--min-parallelism',f:'--min-parallelism',ni:true,it:'number',id:'100',ip:'N',d:'Minimum number of outstanding parallel probes at any time'},
-        {l:'--max-retries N', f:'--max-retries',    ni:true,it:'number',id:'3',ip:'N',d:'Max retransmissions per port before giving up on it'},
+        {l:'--min-rate N',    f:'--min-rate',       ni:true,it:'number',id:'5000',ip:'pkt/s',imin:1,imax:9999999,d:'Send packets no slower than N per second — overrides T template floor'},
+        {l:'--max-rate N',    f:'--max-rate',       ni:true,it:'number',id:'1000',ip:'pkt/s',imin:1,imax:9999999,d:'Cap packet send rate at N per second — hard ceiling on speed'},
+        {l:'--min-parallelism',f:'--min-parallelism',ni:true,it:'number',id:'100',ip:'N',imin:1,imax:65535,d:'Minimum number of outstanding parallel probes at any time'},
+        {l:'--max-retries N', f:'--max-retries',    ni:true,it:'number',id:'3',ip:'N',imin:0,imax:100,d:'Max retransmissions per port before giving up on it'},
         {l:'--host-timeout',  f:'--host-timeout',   ni:true,it:'text',id:'30m',ip:'30m',d:'Abandon a host after this time — useful for firewalled hosts (30m, 1h)'},
       ]},
     ]
@@ -668,13 +688,13 @@ const SECS = [
       {label:'packet manipulation',opts:[
         {l:'-f  fragment',      f:'-f',                d:'Fragment packets into 8-byte chunks to confuse packet filters'},
         {l:'-f -f  double frag',f:'-f -f',             d:'Double fragmentation — reduces to minimum 8-byte fragment size'},
-        {l:'-D RND:N  decoys',  f:'',                  ni:true,it:'number',id:'10',ip:'N',build:v=>`-D RND:${v||'10'}`,d:'Cloak scan with N random decoy IPs to obscure the real source'},
-        {l:'--data-length N',   f:'--data-length',     ni:true,it:'number',id:'25',ip:'bytes',d:'Append N random bytes to packets to alter their traffic signature'},
+        {l:'-D RND:N  decoys',  f:'',                  ni:true,it:'number',id:'10',ip:'N',imin:1,imax:9,build:v=>`-D RND:${v||'10'}`,d:'Cloak scan with N random decoy IPs to obscure the real source'},
+        {l:'--data-length N',   f:'--data-length',     ni:true,it:'number',id:'25',ip:'bytes',imin:0,imax:1400,d:'Append N random bytes to packets to alter their traffic signature'},
         {l:'--badsum',          f:'--badsum',           d:'Send invalid TCP/UDP checksums — reveals lazy or buggy firewall rules'},
-        {l:'--ttl N',           f:'--ttl',             ni:true,it:'number',id:'64',ip:'hops',d:'Set IP TTL field manually to limit how far packets can route'},
+        {l:'--ttl N',           f:'--ttl',             ni:true,it:'number',id:'64',ip:'hops',imin:0,imax:255,d:'Set IP TTL field manually to limit how far packets can route'},
       ]},
       {label:'spoofing',opts:[
-        {l:'--source-port N',   f:'--source-port',     ni:true,it:'number',id:'53',ip:'port',d:'Spoof source port — 53 (DNS) and 80 (HTTP) often bypass firewall rules'},
+        {l:'--source-port N',   f:'--source-port',     ni:true,it:'number',id:'53',ip:'port',imin:1,imax:65535,d:'Spoof source port — 53 (DNS) and 80 (HTTP) often bypass firewall rules'},
         {l:'--randomize-hosts', f:'--randomize-hosts', d:'Randomize target scan order — less detectable than sequential scans'},
         {l:'--spoof-mac',       f:'--spoof-mac',       ni:true,it:'text',id:'0',ip:'mac/0',d:'Spoof MAC address — 0 = random, or specify a vendor OUI prefix'},
       ]},
@@ -896,10 +916,11 @@ function getFlags() {
   for (const sec of SECS) {
     if (sec.nse) { if(S.nseSel.size) out.push(`--script=${[...S.nseSel].join(',')}`); continue; }
     if (sec.pb) continue;  // playbook doesn't contribute flags
-    for (const {fi, v} of (S.sel[sec.id]||[])) {
-      const opt = getOpts(sec)[fi];
+    for (const sel of (S.sel[sec.id]||[])) {
+      const opt = getOpts(sec)[sel.fi];
       if (!opt) continue;
-      const f = fmtFlag(opt, v);
+      if (sel.invalid) continue;        // skip out-of-bounds inline values
+      const f = fmtFlag(opt, sel.v);
       if (f) out.push(f);
     }
   }
@@ -969,7 +990,7 @@ function copyCmd() {
   navigator.clipboard.writeText(buildCmd(S.tool)).then(()=>{
     const b = document.getElementById('cpBtn');
     b.textContent='copied ✓'; b.classList.add('ok');
-    setTimeout(()=>{b.textContent='copy';b.classList.remove('ok');},1600);
+    setTimeout(()=>{b.textContent='copy';b.classList.remove('ok');},COPY_RESET_MS);
   });
 }
 
@@ -988,14 +1009,17 @@ function buildCards() {
     let bodyHtml = '';
     if (sec.nse) {
       const catBtns = NSE_CATS.map(c =>
-        `<button class="ncat${c==='all'?' on':''}" data-cat="${c}" onclick="nseSetCat('${c}')">${c}</button>`
+        `<button class="ncat${c==='all'?' on':''}" data-cat="${c}" onclick="nseSetCat('${c}')" aria-pressed="${c==='all'}">${c}</button>`
       ).join('');
       bodyHtml = `
         <div class="nse-wrap">
-          <input class="nse-search" type="search" placeholder="search all scripts…" oninput="nseFilter(this.value)" autocomplete="off">
-          <div class="nse-cats">${catBtns}</div>
-          <div class="nse-desc empty" id="nseDesc">hover a script name to see what it does</div>
-          <div class="nse-list" id="nseList"></div>
+          <input class="nse-search" type="search" placeholder="search all scripts…"
+                 oninput="nseFilterDebounced(this.value)"
+                 onkeydown="if(event.key==='Escape'){this.value='';nseFilter('');}"
+                 autocomplete="off" aria-label="Search NSE scripts">
+          <div class="nse-cats" role="group" aria-label="NSE categories">${catBtns}</div>
+          <div class="nse-desc empty" id="nseDesc" aria-live="polite">hover a script name to see what it does</div>
+          <div class="nse-list" id="nseList" role="group" aria-label="NSE scripts"></div>
         </div>`;
     } else {
       let groupsHtml = '';
@@ -1003,12 +1027,16 @@ function buildCards() {
       sec.groups.forEach((grp, gi) => {
         const pillsHtml = grp.opts.map((o, oi) => {
           const fi = globalFlatIdx + oi;
+          const minMax = (o.it==='number' && o.imin!=null)
+            ? ` min="${o.imin}" max="${o.imax}"`
+            : '';
           const vin = o.ni
-            ? `<input class="pval" type="${o.it||'text'}" value="${o.id||''}" placeholder="${o.ip||''}"
+            ? `<input class="pval" type="${o.it||'text'}" value="${o.id||''}" placeholder="${o.ip||''}"${minMax}
                  data-sec="${sec.id}" data-fi="${fi}"
                  oninput="onValIn(this)" onclick="event.stopPropagation()">`
             : '';
           return `<div class="pill" id="p-${sec.id}-${fi}" data-sec="${sec.id}" data-fi="${fi}"
+                    role="button" tabindex="0" aria-pressed="false"
                     onclick="togglePill('${sec.id}',${fi})">
                     <span class="plbl">${o.l}</span>${vin}</div>`;
         }).join('');
@@ -1031,19 +1059,30 @@ function buildCards() {
       `<div class="cfoot"><button class="nxtbtn" onclick="advanceTo(${si+1})">next section →</button></div>`;
 
     card.innerHTML = `
-      <div class="strip" onclick="stripClick(${si})">
+      <div class="strip" onclick="stripClick(${si})" tabindex="0"
+           role="button" aria-expanded="false" aria-controls="body-${sec.id}"
+           aria-label="${sec.label} section">
         <span class="snum">${String(si+1).padStart(2,'0')}</span>
         <span class="sname">${sec.label}</span>
         ${manLink}
         <span class="stags" id="st-${sec.id}"></span>
         <span class="sarr">›</span>
       </div>
-      <div class="body"><div class="binner">${bodyHtml}${footer}</div></div>`;
+      <div class="body" id="body-${sec.id}" role="region" aria-label="${sec.label} options"><div class="binner">${bodyHtml}${footer}</div></div>`;
+
+    // keyboard: Enter/Space on strip toggles card
+    card.querySelector('.strip').addEventListener('keydown', e => {
+      if (e.key==='Enter'||e.key===' ') { e.preventDefault(); stripClick(si); }
+    });
 
     if (!sec.nse) {
       card.querySelectorAll('.pill').forEach(p => {
         p.addEventListener('mouseenter', ()=>showDesc(sec.id, +p.dataset.fi));
         p.addEventListener('mouseleave', ()=>refreshDesc(sec.id));
+        // keyboard: Enter/Space activates pill
+        p.addEventListener('keydown', e => {
+          if (e.key==='Enter'||e.key===' ') { e.preventDefault(); togglePill(p.dataset.sec, +p.dataset.fi); }
+        });
       });
     }
     stack.appendChild(card);
@@ -1080,7 +1119,7 @@ function togglePill(secId, fi) {
   // auto-advance for single-answer exclusive opts
   const si = SECS.findIndex(s=>s.id===secId);
   if (isOn && opt.aa && S.active===si && si<SECS.length-1) {
-    setTimeout(()=>{ if(S.active===si) advanceTo(si+1); }, 360);
+    setTimeout(()=>{ if(S.active===si) advanceTo(si+1); }, AUTO_ADVANCE_MS);
   }
 }
 
@@ -1101,11 +1140,30 @@ function updateSvIntensity() {
 }
 
 function onValIn(inp) {
+  const sec = SECS.find(s=>s.id===inp.dataset.sec);
+  const opt = sec ? getOpts(sec)[+inp.dataset.fi] : null;
   const e = (S.sel[inp.dataset.sec]||[]).find(s=>s.fi===+inp.dataset.fi);
-  if (e) { e.v=inp.value; updateCmd(); }
+  if (!e) return;
+  e.v = inp.value;
+  // bounds check for number fields
+  if (opt && opt.it==='number' && opt.imin!=null) {
+    const n = Number(inp.value);
+    const bad = inp.value==='' || isNaN(n) || n<opt.imin || n>opt.imax;
+    inp.classList.toggle('invalid', bad);
+    e.invalid = bad;
+  } else {
+    e.invalid = false;
+    inp.classList.remove('invalid');
+  }
+  updateCmd();
 }
 
 // ─── Card state ───────────────────────────────────────────────────────────────
+function setStripExpanded(cardEl, expanded) {
+  const strip = cardEl.querySelector('.strip');
+  if (strip) strip.setAttribute('aria-expanded', String(expanded));
+}
+
 function stripClick(i) {
   const c = document.getElementById('card-'+SECS[i].id);
   const isPending = c.classList.contains('pending');
@@ -1114,6 +1172,7 @@ function stripClick(i) {
   if (S.active===i) {
     // collapse active card (mark done)
     c.classList.remove('active'); c.classList.add('done');
+    setStripExpanded(c, false);
     S.active = -1;
   } else {
     setActive(i);
@@ -1125,11 +1184,13 @@ function advanceTo(next) {
   for (let k=0; k<=cur && k<SECS.length; k++) {
     const c = document.getElementById('card-'+SECS[k].id);
     c.classList.remove('active','pending'); c.classList.add('done');
+    setStripExpanded(c, false);
   }
   if (next<SECS.length) {
     S.reached = Math.max(S.reached, next); S.active = next;
     const nc = document.getElementById('card-'+SECS[next].id);
     nc.classList.remove('pending','done'); nc.classList.add('active');
+    setStripExpanded(nc, true);
     if (SECS[next].nse) requestAnimationFrame(renderNseList);
   } else { S.active=-1; }
 }
@@ -1137,11 +1198,15 @@ function advanceTo(next) {
 function setActive(i) {
   SECS.forEach((sec,k) => {
     const c = document.getElementById('card-'+sec.id);
-    if (c.classList.contains('active')) { c.classList.remove('active'); c.classList.add('done'); }
+    if (c.classList.contains('active')) {
+      c.classList.remove('active'); c.classList.add('done');
+      setStripExpanded(c, false);
+    }
   });
   S.active = i;
   const c = document.getElementById('card-'+SECS[i].id);
   c.classList.remove('done','pending'); c.classList.add('active');
+  setStripExpanded(c, true);
   if (SECS[i].nse) requestAnimationFrame(renderNseList);
 }
 
@@ -1157,6 +1222,7 @@ function refreshCard(secId) {
     if (!p) return;
     const on = sels.some(s=>s.fi===fi);
     p.classList.toggle('on', on);
+    p.setAttribute('aria-pressed', String(on));
     if (o.ni) {
       const vi = p.querySelector('.pval');
       if (vi) { const e=sels.find(s=>s.fi===fi); if(e&&vi.value!==e.v)vi.value=e.v; }
@@ -1195,7 +1261,10 @@ function refreshDesc(secId) {
 // ─── NSE ─────────────────────────────────────────────────────────────────────
 function nseSetCat(cat) {
   S.nseCat=cat; S.nseQ='';
-  document.querySelectorAll('.ncat').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));
+  document.querySelectorAll('.ncat').forEach(b=>{
+    b.classList.toggle('on',b.dataset.cat===cat);
+    b.setAttribute('aria-pressed', String(b.dataset.cat===cat));
+  });
   const srch=document.querySelector('.nse-search'); if(srch)srch.value='';
   renderNseList();
 }
@@ -1203,10 +1272,14 @@ function nseFilter(q) {
   S.nseQ=q.toLowerCase().trim();
   if (S.nseQ && S.nseCat!=='all') {
     S.nseCat='all';
-    document.querySelectorAll('.ncat').forEach(b=>b.classList.toggle('on',b.dataset.cat==='all'));
+    document.querySelectorAll('.ncat').forEach(b=>{
+      b.classList.toggle('on',b.dataset.cat==='all');
+      b.setAttribute('aria-pressed', String(b.dataset.cat==='all'));
+    });
   }
   renderNseList();
 }
+const nseFilterDebounced = debounce(nseFilter, 120);
 function renderNseList() {
   const list=document.getElementById('nseList'); if(!list)return;
   let scripts = NSE[S.nseCat]||NSE.all;
@@ -1214,14 +1287,24 @@ function renderNseList() {
   if (!scripts.length) { list.innerHTML='<span class="nse-empty">no scripts match</span>'; return; }
   list.innerHTML=scripts.map(s=>{
     const on=S.nseSel.has(s);
-    return `<div class="pill${on?' on':''}" onclick="nseToggle('${s}')"
+    return `<div class="pill${on?' on':''}" role="button" tabindex="0"
+      aria-pressed="${on}" data-script="${s}"
+      onclick="nseToggle('${s}')"
+      onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();nseToggle('${s}')}"
       onmouseenter="nseShowDesc('${s}')" onmouseleave="nseClearDesc()">
       <span class="plbl">${s}</span></div>`;
   }).join('');
 }
 function nseToggle(s) {
-  S.nseSel.has(s)?S.nseSel.delete(s):S.nseSel.add(s);
-  renderNseList(); refreshNseStrip(); updateCmd();
+  const on = !S.nseSel.has(s);
+  on ? S.nseSel.add(s) : S.nseSel.delete(s);
+  // update only the toggled pill in-place — avoid full re-render
+  const list = document.getElementById('nseList');
+  if (list) {
+    const pill = list.querySelector(`[data-script="${CSS.escape(s)}"]`);
+    if (pill) { pill.classList.toggle('on', on); pill.setAttribute('aria-pressed', String(on)); }
+  }
+  refreshNseStrip(); updateCmd();
 }
 function nseShowDesc(s) {
   const d=document.getElementById('nseDesc'); if(!d)return;
@@ -1267,6 +1350,7 @@ function pbFilter(q) {
   }
   renderPbList();
 }
+const pbFilterDebounced = debounce(pbFilter, 120);
 
 function renderPbList() {
   const list=document.getElementById('pbList'); if(!list)return;
@@ -1310,7 +1394,7 @@ function pbCopy(id) {
     const b = document.getElementById('pbcpy-'+id);
     if (!b) return;
     b.textContent='copied ✓'; b.classList.add('ok');
-    setTimeout(()=>{ b.textContent='copy command'; b.classList.remove('ok'); }, 1600);
+    setTimeout(()=>{ b.textContent='copy command'; b.classList.remove('ok'); }, COPY_RESET_MS);
   });
 }
 
@@ -1323,10 +1407,14 @@ document.getElementById('tIn').addEventListener('input', function() {
   this.classList.remove('valid','invalid');
   if (S.target) this.classList.add(S.valid?'valid':'invalid');
 
+  // show/hide clear button
+  document.querySelector('.tclear').classList.toggle('hidden', !this.value);
+
   if (S.target && !prev) {
     S.reached=0; S.active=0;
     const c=document.getElementById('card-'+SECS[0].id);
     c.classList.remove('pending'); c.classList.add('active');
+    setStripExpanded(c, true);
   }
   if (!S.target && prev) _reset(true);
   updateCmd();
@@ -1336,6 +1424,7 @@ document.getElementById('tIn').addEventListener('input', function() {
 
 function clearAll() {
   const i=document.getElementById('tIn'); i.value=''; i.classList.remove('valid','invalid');
+  document.querySelector('.tclear').classList.add('hidden');
   S.target=''; S.valid=false;
   _reset(false); i.focus(); updateCmd();
 }
