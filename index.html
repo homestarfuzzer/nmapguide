@@ -302,6 +302,11 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
 .pb-copy.ok{color:var(--g0);border-color:var(--g0);background:var(--g1)}
 .pb-empty{font-size:11px;color:var(--t2);font-style:italic;padding:4px 0}
 
+/* ── layout wrappers — mobile: transparent stack, desktop: grid ── */
+.layout{width:100%;display:flex;flex-direction:column;align-items:center}
+.col-builder{width:100%;display:flex;flex-direction:column;align-items:center}
+.col-ref{width:100%;display:flex;flex-direction:column;align-items:center}
+
 /* focus outlines for keyboard navigation */
 .pill:focus-visible,.strip:focus-visible,.ncat:focus-visible,.pbcat:focus-visible,
 .nxtbtn:focus-visible,#cpBtn:focus-visible,.tclear:focus-visible,.ttab:focus-visible{
@@ -311,6 +316,57 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
 .tclear.hidden{display:none}
 @media(max-width:600px){#tIn{font-size:16px}.card.done{box-shadow:0 2px 0 rgba(0,0,0,.4)}}
 @media(prefers-reduced-motion:reduce){.radar-sweep,.radar-ping1,.radar-ping2,.radar-ping3{animation:none}}
+
+/* ── desktop two-column layout ── */
+@media(min-width:1024px){
+  body{padding:2rem 2.5rem 5rem}
+
+  /* outer grid container */
+  .layout{
+    max-width:1140px;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 300px;
+    gap:0 2.5rem;
+    align-items:start;
+  }
+
+  /* builder column: stretch children to fill column */
+  .col-builder{align-items:stretch}
+  .col-builder .tooltabs,
+  .col-builder .cmdstrip,
+  .col-builder .trow,
+  .col-builder #stack{max-width:none;width:100%}
+
+  /* sticky command output strip */
+  .col-builder .cmdstrip{
+    position:sticky;
+    top:0;
+    z-index:10;
+    background:var(--bg);
+    box-shadow:0 4px 16px rgba(0,0,0,.35);
+  }
+
+  /* right reference panel: sticky, independently scrollable */
+  .col-ref{
+    align-items:stretch;
+    position:sticky;
+    top:2rem;
+    max-height:calc(100vh - 4rem);
+    overflow-y:auto;
+    border-left:1px solid var(--b1);
+    padding-left:1.75rem;
+    scrollbar-width:thin;
+    scrollbar-color:var(--b2) transparent;
+  }
+  .col-ref::-webkit-scrollbar{width:3px}
+  .col-ref::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+
+  /* playbook inside right panel: reset standalone margins */
+  #playbook{max-width:none;width:100%;margin-top:0}
+
+  /* let right panel's container scroll — remove inner list cap */
+  .pb-list{max-height:none;overflow-y:visible;padding-bottom:1.5rem}
+}
 </style>
 </head>
 <body>
@@ -360,6 +416,8 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
   </div>
 </div>
 
+<div class="layout">
+<div class="col-builder">
 <!-- Tool tabs -->
 <div class="tooltabs" role="tablist" aria-label="Scanner tool">
   <button class="ttab on" role="tab" aria-selected="true" data-tool="nmap" onclick="setTool('nmap')">nmap</button>
@@ -386,7 +444,9 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
 
 <!-- Card stack -->
 <div id="stack"></div>
+</div><!-- /col-builder -->
 
+<aside class="col-ref">
 <!-- ── Standalone Playbook ─────────────────────────────────────────────── -->
 <div id="playbook">
   <div class="pb-section-hdr">
@@ -415,7 +475,9 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 5re
     </div>
     <div class="pb-list" id="pbList"></div>
   </div>
-</div>
+</div><!-- /playbook -->
+</aside><!-- /col-ref -->
+</div><!-- /layout -->
 
 <script>
 // ─── Constants ────────────────────────────────────────────────────────────────
